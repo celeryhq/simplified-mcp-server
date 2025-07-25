@@ -41,6 +41,7 @@ npm run build
 ```bash
 npm install -g @anthropic-ai/dxt
 npx @anthropic-ai/dxt pack        
+```
 
 ## Configuration
 
