@@ -1,0 +1,66 @@
+{
+  "dxt_version": "0.1",
+  "name": "simplified-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Simplified API integration",
+  "author": {
+    "name": "Simplified MCP Server Contributors",
+    "email": "jack@simplified.com",
+    "url": "https://simplified.com"
+  },
+  "homepage": "https://simplified.com",
+  "icon": "simplified.svg",
+  "server": {
+    "type": "node",
+    "entry_point": "index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/dist/cli.js",
+        "start"
+      ],
+      "env": {
+        "SIMPLIFIED_API_TOKEN": "${user_config.api_key}",
+        "SIMPLIFIED_API_BASE_URL": "${user_config.base_path}",
+        "LOG_LEVEL": "${user_config.log_level}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "create_social_media_post",
+      "description": "Create a new social media post with specified action."
+    },
+    {
+      "name": "get_social_media_accounts",
+      "description": "Get connected social accounts"
+    }
+  ],
+  "tools_generated": true,
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "Api Key",
+      "description": "Simplified Api Key",
+      "required": true,
+      "sensitive": true
+    },
+    "base_path": {
+        "type": "string",
+        "title": "Base path",
+        "description": "Simplified Api Base Path",
+        "required": true,
+        "sensitive": false,
+        "default": "https://api.simplified.com"
+      },
+      "log_level": {
+        "type": "string",
+        "title": "Log level",
+        "description": "Log level",
+        "required": true,
+        "sensitive": false,
+        "default": "info"
+      }
+  },
+  "license": "MIT"
+}
