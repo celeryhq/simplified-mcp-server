@@ -37,7 +37,7 @@ npm install
 npm run build
 ```
 
-## pack DXT file
+### pack DXT file
 ```bash
 npm install -g @anthropic-ai/dxt
 npx @anthropic-ai/dxt pack        
