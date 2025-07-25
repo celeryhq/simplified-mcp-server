@@ -20,7 +20,7 @@ A Model Context Protocol (MCP) server that provides seamless integration between
 
 - Node.js 18.0.0 or higher
 - npm 8.0.0 or higher
-- A Simplified API token
+- A [Simplified API token](https://simplified.readme.io/reference/authentication)
 
 ### Install from NPM
 
