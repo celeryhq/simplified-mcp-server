@@ -78,21 +78,6 @@ RETRY_DELAY=1000
 
 ## Usage
 
-### Command Line Interface
-
-Start the MCP server using the CLI:
-
-```bash
-# Using global installation
-simplified-mcp-server
-
-# Using npx
-npx simplified-mcp-server
-
-# Using local installation
-./node_modules/.bin/simplified-mcp-server
-```
-
 ### Programmatic Usage
 
 ```typescript
@@ -107,6 +92,36 @@ async function startServer() {
 
 startServer().catch(console.error);
 ```
+
+### Integration with Claude
+
+Add the server to your Claude MCP configuration:
+
+```json
+{
+   "mcpServers": {
+      "simplified": {
+        "command": "node",
+        "args": [
+          "{PATH_TO_CLONED_REPOSITORY}/dist/cli.js",
+          "start"
+        ],
+        "env": {
+          "SIMPLIFIED_API_TOKEN": "your_token_here",
+          "SIMPLIFIED_API_BASE_URL": "https://api.simplified.com",
+          "LOG_LEVEL": "info"
+        }
+      }
+    }
+}
+```
+
+Install DXT extension:
+
+Extensions -> Advanced settings -> Install Extension...
+
+Choose simplified-mcp.dxt file.
+Add your token.
 
 ### Integration with Kiro
 
