@@ -68,10 +68,10 @@ The server is configured using environment variables. Create a `.env` file in yo
 ```bash
 # Required
 SIMPLIFIED_API_TOKEN=sk_live_your_token_here
-
-# Optional
 SIMPLIFIED_API_BASE_URL=https://api.simplified.com
 LOG_LEVEL=info
+
+# Optional
 REQUEST_TIMEOUT=30000
 RETRY_ATTEMPTS=3
 RETRY_DELAY=1000
