@@ -1,7 +1,7 @@
 {
   "dxt_version": "0.1",
   "name": "simplified-mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "MCP server for Simplified API integration",
   "author": {
     "name": "Simplified MCP Server Contributors",
