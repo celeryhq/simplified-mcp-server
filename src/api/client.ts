@@ -47,7 +47,7 @@ export class SimplifiedAPIClient {
       'User-Agent': 'simplified-mcp-server/1.0.0',
       ...options?.headers
     };
-
+    
     const requestOptions: RequestInit = {
       method,
       headers,
@@ -123,6 +123,7 @@ export class SimplifiedAPIClient {
    */
   async get(endpoint: string, params?: Record<string, any>, options?: APIRequestOptions): Promise<APIResponse> {
     let url = endpoint;
+   
     if (params && Object.keys(params).length > 0) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {

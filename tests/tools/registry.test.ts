@@ -453,7 +453,7 @@ describe('ToolRegistry', () => {
     it('should generate documentation for all tools', () => {
       const docs = registry.generateDocumentation();
       expect(docs).toContain('# Simplified MCP Server Tools Documentation');
-      expect(docs).toContain('## documentation');
+      expect(docs).toContain('## Documentation Tools');
       expect(docs).toContain('### documented-tool');
       expect(docs).toContain('A well-documented tool');
       expect(docs).toContain('**Version:** 1.0.0');
@@ -769,6 +769,274 @@ describe('ToolRegistry', () => {
       expect(registry.getToolCount()).toBe(2);
       expect(registry.getTool('tool-1')).toBeDefined();
       expect(registry.getTool('tool-2')).toBeDefined();
+    });
+  });
+
+  describe('Workflow Tool Support', () => {
+    let mockConfig: any;
+    let workflowDef: any;
+    let toolDef: ToolDefinition;
+
+    beforeEach(() => {
+      mockConfig = {
+        workflowsEnabled: true,
+        workflowDiscoveryInterval: 60000,
+        workflowExecutionTimeout: 300000,
+        workflowMaxConcurrentExecutions: 10,
+        workflowFilterPatterns: [],
+        workflowStatusCheckInterval: 5000,
+        workflowRetryAttempts: 3
+      };
+
+      workflowDef = {
+        id: 'test-workflow-123',
+        name: 'test-workflow',
+        description: 'A test workflow',
+        category: 'workflow',
+        version: '1.0.0',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            input_param: {
+              type: 'string',
+              description: 'Test input parameter'
+            }
+          },
+          required: ['input_param']
+        },
+        executionType: 'async',
+        metadata: {
+          author: 'test-author',
+          tags: ['test', 'workflow']
+        }
+      };
+
+      toolDef = {
+        name: 'test-workflow',
+        description: 'A test workflow',
+        category: 'workflow',
+        version: '1.0.0',
+        inputSchema: workflowDef.inputSchema,
+        handler: async () => ({ content: [{ type: 'text', text: 'workflow result' }] })
+      };
+
+      registry.setConfig(mockConfig);
+    });
+
+    it('should register workflow tool with metadata', () => {
+      registry.registerWorkflowTool(toolDef, workflowDef);
+
+      expect(registry.getToolCount()).toBe(1);
+      expect(registry.getWorkflowToolCount()).toBe(1);
+      expect(registry.getStaticToolCount()).toBe(0);
+      expect(registry.isWorkflowTool('test-workflow')).toBe(true);
+      expect(registry.getWorkflowDefinition('test-workflow')).toEqual(workflowDef);
+    });
+
+    it('should track workflow tool names', () => {
+      registry.registerWorkflowTool(toolDef, workflowDef);
+
+      const workflowToolNames = registry.getWorkflowToolNames();
+      expect(workflowToolNames).toContain('test-workflow');
+      expect(workflowToolNames).toHaveLength(1);
+    });
+
+    it('should unregister workflow tools properly', () => {
+      registry.registerWorkflowTool(toolDef, workflowDef);
+      expect(registry.isWorkflowTool('test-workflow')).toBe(true);
+
+      registry.unregisterTool('test-workflow');
+      expect(registry.isWorkflowTool('test-workflow')).toBe(false);
+      expect(registry.getWorkflowDefinition('test-workflow')).toBeUndefined();
+      expect(registry.getWorkflowToolCount()).toBe(0);
+    });
+
+    it('should clear workflow tools when clearing registry', () => {
+      registry.registerWorkflowTool(toolDef, workflowDef);
+      expect(registry.getWorkflowToolCount()).toBe(1);
+
+      registry.clear();
+      expect(registry.getWorkflowToolCount()).toBe(0);
+      expect(registry.getWorkflowToolNames()).toHaveLength(0);
+    });
+
+    it('should distinguish between static and workflow tools', () => {
+      // Register a static tool
+      const staticTool: ToolDefinition = {
+        name: 'static-tool',
+        description: 'A static tool',
+        inputSchema: { type: 'object', properties: {} },
+        handler: async () => ({ content: [{ type: 'text', text: 'static' }] })
+      };
+      registry.registerTool(staticTool);
+
+      // Register a workflow tool
+      registry.registerWorkflowTool(toolDef, workflowDef);
+
+      expect(registry.getToolCount()).toBe(2);
+      expect(registry.getStaticToolCount()).toBe(1);
+      expect(registry.getWorkflowToolCount()).toBe(1);
+      expect(registry.isWorkflowTool('static-tool')).toBe(false);
+      expect(registry.isWorkflowTool('test-workflow')).toBe(true);
+    });
+  });
+
+  describe('Enhanced Documentation Generation', () => {
+    let mockConfig: any;
+
+    beforeEach(() => {
+      mockConfig = {
+        workflowsEnabled: true,
+        workflowDiscoveryInterval: 60000,
+        workflowExecutionTimeout: 300000,
+        workflowMaxConcurrentExecutions: 10,
+        workflowFilterPatterns: ['test-*'],
+        workflowStatusCheckInterval: 5000,
+        workflowRetryAttempts: 3
+      };
+
+      registry.setConfig(mockConfig);
+    });
+
+    it('should generate enhanced documentation with workflow configuration', () => {
+      // Register a static tool
+      const staticTool: ToolDefinition = {
+        name: 'static-tool',
+        description: 'A static tool',
+        category: 'utilities',
+        inputSchema: { type: 'object', properties: {} },
+        handler: async () => ({ content: [{ type: 'text', text: 'static' }] })
+      };
+      registry.registerTool(staticTool);
+
+      // Register a workflow tool
+      const workflowDef = {
+        id: 'workflow-123',
+        name: 'workflow-tool',
+        description: 'A workflow tool',
+        category: 'workflow',
+        executionType: 'async',
+        metadata: { author: 'test' },
+        inputSchema: {
+          type: 'object',
+          properties: {
+            param1: { type: 'string', description: 'Test parameter' }
+          }
+        }
+      };
+
+      const workflowTool: ToolDefinition = {
+        name: 'workflow-tool',
+        description: 'A workflow tool',
+        category: 'workflow',
+        inputSchema: workflowDef.inputSchema,
+        handler: async () => ({ content: [{ type: 'text', text: 'workflow' }] })
+      };
+
+      registry.registerWorkflowTool(workflowTool, workflowDef);
+
+      const docs = registry.generateDocumentation();
+
+      // Check overview section
+      expect(docs).toContain('## Overview');
+      expect(docs).toContain('This server provides 2 tools across 2 categories');
+      expect(docs).toContain('**Static Tools:** 1 (built-in functionality)');
+      expect(docs).toContain('**Dynamic Workflow Tools:** 1 (discovered from workflows)');
+
+      // Check workflow configuration section
+      expect(docs).toContain('## Workflow Configuration');
+      expect(docs).toContain('### Current Configuration');
+      expect(docs).toContain('- Workflows Enabled: true');
+      expect(docs).toContain('- Discovery Interval: 60000ms');
+      expect(docs).toContain('- Filter Patterns: test-*');
+
+      // Check workflow tool documentation
+      expect(docs).toContain('🔄 Dynamic Workflow Tool');
+      expect(docs).toContain('**Workflow ID:** `workflow-123`');
+      expect(docs).toContain('**Execution Type:** async');
+      expect(docs).toContain('**Workflow Metadata:**');
+      expect(docs).toContain('- author: "test"');
+      expect(docs).toContain('**Execution Notes:**');
+      expect(docs).toContain('- This tool executes a workflow via the Simplified API');
+
+      // Check examples section
+      expect(docs).toContain('## Workflow Tool Usage Examples');
+      expect(docs).toContain('### Example: workflow-tool');
+      expect(docs).toContain('"name": "workflow-tool"');
+      expect(docs).toContain('### Status Checking');
+      expect(docs).toContain('"name": "workflow-status-check"');
+    });
+
+    it('should generate documentation without workflow configuration when disabled', () => {
+      mockConfig.workflowsEnabled = false;
+      registry.setConfig(mockConfig);
+
+      const staticTool: ToolDefinition = {
+        name: 'static-tool',
+        description: 'A static tool',
+        inputSchema: { type: 'object', properties: {} },
+        handler: async () => ({ content: [{ type: 'text', text: 'static' }] })
+      };
+      registry.registerTool(staticTool);
+
+      const docs = registry.generateDocumentation();
+
+      expect(docs).toContain('**Static Tools:** 1 (built-in functionality)');
+      expect(docs).not.toContain('**Dynamic Workflow Tools:**');
+      expect(docs).not.toContain('## Workflow Configuration');
+      expect(docs).not.toContain('## Workflow Tool Usage Examples');
+    });
+
+    it('should format category names properly', () => {
+      const tool: ToolDefinition = {
+        name: 'test-tool',
+        description: 'A test tool',
+        category: 'data-processing',
+        inputSchema: { type: 'object', properties: {} },
+        handler: async () => ({ content: [{ type: 'text', text: 'test' }] })
+      };
+      registry.registerTool(tool);
+
+      const docs = registry.generateDocumentation();
+      expect(docs).toContain('## Data Processing Tools');
+    });
+
+    it('should generate example parameters correctly', () => {
+      const workflowDef = {
+        id: 'example-workflow',
+        name: 'example-tool',
+        description: 'Example workflow',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            stringParam: { type: 'string', example: 'custom-example' },
+            numberParam: { type: 'number', minimum: 5 },
+            enumParam: { type: 'string', enum: ['option1', 'option2'] },
+            booleanParam: { type: 'boolean' },
+            arrayParam: { type: 'array' },
+            objectParam: { type: 'object' }
+          }
+        }
+      };
+
+      const workflowTool: ToolDefinition = {
+        name: 'example-tool',
+        description: 'Example workflow',
+        category: 'workflow',
+        inputSchema: workflowDef.inputSchema,
+        handler: async () => ({ content: [{ type: 'text', text: 'example' }] })
+      };
+
+      registry.registerWorkflowTool(workflowTool, workflowDef);
+
+      const docs = registry.generateDocumentation();
+
+      expect(docs).toContain('"stringParam": "custom-example"');
+      expect(docs).toContain('"numberParam": 5');
+      expect(docs).toContain('"enumParam": "option1"');
+      expect(docs).toContain('"booleanParam": true');
+      expect(docs).toContain('"arrayParam": ["example-item"]');
+      expect(docs).toContain('"objectParam": {"key":"value"}');
     });
   });
 });

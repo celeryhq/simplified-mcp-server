@@ -3,8 +3,7 @@
  */
 
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import type { ToolDefinition, ToolCallParams, APIClient } from '../types/index.js';
-import { ErrorHandler, MCPErrorCodes } from '../utils/errors.js';
+import type { ToolDefinition, ToolCallParams, APIClient, WorkflowDefinition, ServerConfig } from '../types/index.js';
 import { AppError, ErrorType } from '../types/index.js';
 
 /**
@@ -13,6 +12,15 @@ import { AppError, ErrorType } from '../types/index.js';
 export class ToolRegistry {
   private tools: Map<string, ToolDefinition> = new Map();
   private categories: Map<string, string[]> = new Map();
+  private workflowTools: Map<string, WorkflowDefinition> = new Map();
+  private config?: ServerConfig;
+
+  /**
+   * Set server configuration for enhanced documentation
+   */
+  public setConfig(config: ServerConfig): void {
+    this.config = config;
+  }
 
   /**
    * Register a new tool with the registry
@@ -35,6 +43,17 @@ export class ToolRegistry {
   }
 
   /**
+   * Register a workflow tool with additional workflow metadata
+   */
+  public registerWorkflowTool(toolDef: ToolDefinition, workflowDef: WorkflowDefinition): void {
+    // Register as regular tool first
+    this.registerTool(toolDef);
+    
+    // Store workflow metadata
+    this.workflowTools.set(toolDef.name, workflowDef);
+  }
+
+  /**
    * Unregister a tool from the registry
    */
   public unregisterTool(name: string): boolean {
@@ -45,6 +64,9 @@ export class ToolRegistry {
 
     // Remove from tools map
     this.tools.delete(name);
+
+    // Remove from workflow tools if it exists
+    this.workflowTools.delete(name);
 
     // Remove from category mapping
     if (tool.category) {
@@ -108,6 +130,41 @@ export class ToolRegistry {
    */
   public getToolNames(): string[] {
     return Array.from(this.tools.keys());
+  }
+
+  /**
+   * Check if a tool is a workflow tool
+   */
+  public isWorkflowTool(name: string): boolean {
+    return this.workflowTools.has(name);
+  }
+
+  /**
+   * Get workflow definition for a workflow tool
+   */
+  public getWorkflowDefinition(name: string): WorkflowDefinition | undefined {
+    return this.workflowTools.get(name);
+  }
+
+  /**
+   * Get all workflow tool names
+   */
+  public getWorkflowToolNames(): string[] {
+    return Array.from(this.workflowTools.keys());
+  }
+
+  /**
+   * Get count of workflow tools
+   */
+  public getWorkflowToolCount(): number {
+    return this.workflowTools.size;
+  }
+
+  /**
+   * Get count of static (non-workflow) tools
+   */
+  public getStaticToolCount(): number {
+    return this.tools.size - this.workflowTools.size;
   }
 
   /**
@@ -362,6 +419,14 @@ export class ToolRegistry {
     const docs: string[] = [];
     docs.push('# Simplified MCP Server Tools Documentation\n');
 
+    // Add overview section
+    docs.push(this.generateOverviewSection());
+
+    // Add workflow configuration section if workflows are enabled
+    if (this.config?.workflowsEnabled && this.workflowTools.size > 0) {
+      docs.push(this.generateWorkflowConfigurationSection());
+    }
+
     // Group tools by category
     const categorizedTools = new Map<string, ToolDefinition[]>();
     const uncategorizedTools: ToolDefinition[] = [];
@@ -378,7 +443,13 @@ export class ToolRegistry {
 
     // Document categorized tools
     for (const [category, tools] of categorizedTools.entries()) {
-      docs.push(`## ${category}\n`);
+      docs.push(`## ${this.formatCategoryName(category)}\n`);
+      
+      // Add category-specific information for workflow tools
+      if (category === 'workflow' && this.workflowTools.size > 0) {
+        docs.push(this.generateWorkflowCategoryIntro());
+      }
+      
       for (const tool of tools) {
         docs.push(this.generateToolDocumentation(tool));
       }
@@ -392,6 +463,11 @@ export class ToolRegistry {
       }
     }
 
+    // Add workflow examples section if workflows exist
+    if (this.workflowTools.size > 0) {
+      docs.push(this.generateWorkflowExamplesSection());
+    }
+
     return docs.join('\n');
   }
 
@@ -400,9 +476,34 @@ export class ToolRegistry {
    */
   private generateToolDocumentation(tool: ToolDefinition): string {
     const docs: string[] = [];
+    const isWorkflow = this.isWorkflowTool(tool.name);
+    const workflowDef = isWorkflow ? this.getWorkflowDefinition(tool.name) : undefined;
     
     docs.push(`### ${tool.name}\n`);
+    
+    // Add workflow badge if it's a workflow tool
+    if (isWorkflow) {
+      docs.push(`*🔄 Dynamic Workflow Tool*\n`);
+    }
+    
     docs.push(`${tool.description}\n`);
+    
+    // Add workflow-specific metadata
+    if (isWorkflow && workflowDef) {
+      docs.push(`**Workflow ID:** \`${workflowDef.id}\`\n`);
+      docs.push(`**Execution Type:** ${workflowDef.executionType || 'async'}\n`);
+      
+      if (workflowDef.metadata) {
+        const metadataEntries = Object.entries(workflowDef.metadata);
+        if (metadataEntries.length > 0) {
+          docs.push('**Workflow Metadata:**\n');
+          for (const [key, value] of metadataEntries) {
+            docs.push(`- ${key}: ${JSON.stringify(value)}`);
+          }
+          docs.push('');
+        }
+      }
+    }
     
     if (tool.version) {
       docs.push(`**Version:** ${tool.version}\n`);
@@ -441,6 +542,15 @@ export class ToolRegistry {
       docs.push('**Parameters:** None\n');
     }
 
+    // Add workflow-specific execution notes
+    if (isWorkflow) {
+      docs.push('**Execution Notes:**\n');
+      docs.push('- This tool executes a workflow via the Simplified API');
+      docs.push('- Execution is asynchronous and may take time to complete');
+      docs.push('- Status updates are provided during execution');
+      docs.push('- Results include execution timing and metadata\n');
+    }
+
     return docs.join('\n') + '\n';
   }
 
@@ -450,5 +560,208 @@ export class ToolRegistry {
   public clear(): void {
     this.tools.clear();
     this.categories.clear();
+    this.workflowTools.clear();
+  }
+
+  /**
+   * Generate overview section for documentation
+   */
+  private generateOverviewSection(): string {
+    const docs: string[] = [];
+    const totalTools = this.tools.size;
+    const workflowTools = this.workflowTools.size;
+    const staticTools = totalTools - workflowTools;
+
+    docs.push('## Overview\n');
+    docs.push(`This server provides ${totalTools} tools across ${this.categories.size} categories:\n`);
+    docs.push(`- **Static Tools:** ${staticTools} (built-in functionality)`);
+    
+    if (workflowTools > 0) {
+      docs.push(`- **Dynamic Workflow Tools:** ${workflowTools} (discovered from workflows)`);
+    }
+    
+    docs.push('');
+
+    if (this.config?.workflowsEnabled) {
+      docs.push('**Dynamic Workflow Tools** are automatically discovered and registered based on available workflows.');
+      docs.push('These tools provide access to workflow execution capabilities through the MCP protocol.\n');
+    }
+
+    return docs.join('\n');
+  }
+
+  /**
+   * Generate workflow configuration section
+   */
+  private generateWorkflowConfigurationSection(): string {
+    const docs: string[] = [];
+    
+    docs.push('## Workflow Configuration\n');
+    docs.push('Dynamic workflow tools are configured through environment variables:\n');
+    
+    docs.push('### Required Configuration\n');
+    docs.push('- `WORKFLOWS_ENABLED=true` - Enable dynamic workflow tool discovery\n');
+    
+    docs.push('### Optional Configuration\n');
+    docs.push('- `WORKFLOW_DISCOVERY_INTERVAL` - Auto-refresh interval in milliseconds (default: 0, disabled)');
+    docs.push('- `WORKFLOW_EXECUTION_TIMEOUT` - Execution timeout in milliseconds (default: 300000, 5 minutes)');
+    docs.push('- `WORKFLOW_MAX_CONCURRENT_EXECUTIONS` - Maximum concurrent executions (default: 10)');
+    docs.push('- `WORKFLOW_FILTER_PATTERNS` - Comma-separated patterns to filter workflows (default: none)');
+    docs.push('- `WORKFLOW_STATUS_CHECK_INTERVAL` - Status polling interval in milliseconds (default: 5000)');
+    docs.push('- `WORKFLOW_RETRY_ATTEMPTS` - Retry attempts for failed operations (default: 3)\n');
+
+    if (this.config) {
+      docs.push('### Current Configuration\n');
+      docs.push(`- Workflows Enabled: ${this.config.workflowsEnabled}`);
+      docs.push(`- Discovery Interval: ${this.config.workflowDiscoveryInterval}ms`);
+      docs.push(`- Execution Timeout: ${this.config.workflowExecutionTimeout}ms`);
+      docs.push(`- Max Concurrent Executions: ${this.config.workflowMaxConcurrentExecutions}`);
+      docs.push(`- Status Check Interval: ${this.config.workflowStatusCheckInterval}ms`);
+      docs.push(`- Retry Attempts: ${this.config.workflowRetryAttempts}`);
+      
+      if (this.config.workflowFilterPatterns.length > 0) {
+        docs.push(`- Filter Patterns: ${this.config.workflowFilterPatterns.join(', ')}`);
+      }
+      docs.push('');
+    }
+
+    return docs.join('\n');
+  }
+
+  /**
+   * Generate workflow category introduction
+   */
+  private generateWorkflowCategoryIntro(): string {
+    const docs: string[] = [];
+    
+    docs.push('These tools are dynamically generated from available workflows. Each workflow tool:');
+    docs.push('- Executes asynchronously via the Simplified API');
+    docs.push('- Provides real-time status updates during execution');
+    docs.push('- Returns structured results with execution metadata');
+    docs.push('- Handles parameter validation based on workflow schemas\n');
+    
+    return docs.join('\n');
+  }
+
+  /**
+   * Generate workflow examples section
+   */
+  private generateWorkflowExamplesSection(): string {
+    const docs: string[] = [];
+    
+    docs.push('## Workflow Tool Usage Examples\n');
+    
+    // Get a few example workflow tools
+    const workflowToolNames = Array.from(this.workflowTools.keys()).slice(0, 3);
+    
+    for (const toolName of workflowToolNames) {
+      const tool = this.tools.get(toolName);
+      const workflow = this.workflowTools.get(toolName);
+      
+      if (tool && workflow) {
+        docs.push(`### Example: ${tool.name}\n`);
+        docs.push('```json');
+        docs.push('{');
+        docs.push(`  "method": "tools/call",`);
+        docs.push(`  "params": {`);
+        docs.push(`    "name": "${tool.name}",`);
+        docs.push(`    "arguments": {`);
+        
+        // Generate example parameters
+        const exampleParams = this.generateExampleParameters(tool.inputSchema);
+        const paramEntries = Object.entries(exampleParams);
+        
+        paramEntries.forEach(([key, value], index) => {
+          const comma = index < paramEntries.length - 1 ? ',' : '';
+          docs.push(`      "${key}": ${JSON.stringify(value)}${comma}`);
+        });
+        
+        docs.push(`    }`);
+        docs.push(`  }`);
+        docs.push('}');
+        docs.push('```\n');
+        
+        docs.push('**Expected Response:**');
+        docs.push('```json');
+        docs.push('{');
+        docs.push('  "content": [');
+        docs.push('    {');
+        docs.push('      "type": "text",');
+        docs.push('      "text": "Workflow execution completed successfully\\n\\nExecution Details:\\n- Workflow ID: ' + workflow.id + '\\n- Status: COMPLETED\\n- Duration: 2.5s\\n\\nResults:\\n[workflow output data]"');
+        docs.push('    }');
+        docs.push('  ]');
+        docs.push('}');
+        docs.push('```\n');
+      }
+    }
+
+    docs.push('### Status Checking\n');
+    docs.push('Use the `workflow-status-check` tool to monitor running workflows:');
+    docs.push('```json');
+    docs.push('{');
+    docs.push('  "method": "tools/call",');
+    docs.push('  "params": {');
+    docs.push('    "name": "workflow-status-check",');
+    docs.push('    "arguments": {');
+    docs.push('      "workflowId": "2724",');
+    docs.push('      "workflowInstanceId": "8f496b6a-c905-41bb-b7b7-200a8982ab30"');
+    docs.push('    }');
+    docs.push('  }');
+    docs.push('}');
+    docs.push('```\n');
+
+    return docs.join('\n');
+  }
+
+  /**
+   * Format category name for display
+   */
+  private formatCategoryName(category: string): string {
+    return category
+      .split(/[-_]/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ') + ' Tools';
+  }
+
+  /**
+   * Generate example parameters for a tool schema
+   */
+  private generateExampleParameters(inputSchema: any): Record<string, any> {
+    const examples: Record<string, any> = {};
+    
+    if (inputSchema.properties) {
+      for (const [paramName, paramSchema] of Object.entries(inputSchema.properties)) {
+        const schema = paramSchema as any;
+        
+        if (schema.example !== undefined) {
+          examples[paramName] = schema.example;
+        } else if (schema.enum && schema.enum.length > 0) {
+          examples[paramName] = schema.enum[0];
+        } else {
+          switch (schema.type) {
+            case 'string':
+              examples[paramName] = schema.pattern ? 'example-value' : `example-${paramName}`;
+              break;
+            case 'number':
+            case 'integer':
+              examples[paramName] = schema.minimum || 1;
+              break;
+            case 'boolean':
+              examples[paramName] = true;
+              break;
+            case 'array':
+              examples[paramName] = ['example-item'];
+              break;
+            case 'object':
+              examples[paramName] = { key: 'value' };
+              break;
+            default:
+              examples[paramName] = 'example-value';
+          }
+        }
+      }
+    }
+    
+    return examples;
   }
 }
