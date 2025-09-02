@@ -43,7 +43,7 @@ const WorkflowConfigSchema = z.object({
  * Configuration schema for validation
  */
 const ConfigSchema = z.object({
-  apiToken: z.string().min(1, 'otkFyRGB.filbSnmLSINrg0eakfGkhSRa4clfo8aL'),
+  apiToken: z.string().min(1, 'API_TOKEN'),
   apiBaseUrl: z.string().url().default('https://api.simplified.com'),
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   timeout: z.number().positive().default(30000),
