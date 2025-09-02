@@ -14,6 +14,7 @@ interface CLIOptions {
   verbose?: boolean;
   config?: string;
   logLevel?: 'debug' | 'info' | 'warn' | 'error';
+  docs?: boolean;
 }
 
 function parseArguments(): CLIOptions {
@@ -65,6 +66,9 @@ function parseArguments(): CLIOptions {
           process.exit(1);
         }
         break;
+      case '--docs':
+        options.docs = true;
+        break;
       default:
         if (arg.startsWith('-')) {
           console.error(`Error: Unknown option ${arg}`);
@@ -91,6 +95,7 @@ OPTIONS:
   --verbose               Enable verbose logging
   -c, --config <file>     Specify configuration file path
   --log-level <level>     Set log level (debug, info, warn, error)
+  --docs                  Generate and display tool documentation
 
 ENVIRONMENT VARIABLES:
   SIMPLIFIED_API_TOKEN    Required: Your Simplified API token
@@ -103,6 +108,7 @@ EXAMPLES:
   simplified-mcp-server --verbose
   simplified-mcp-server --log-level debug
   simplified-mcp-server --config /path/to/.env
+  simplified-mcp-server --docs
 
 For more information, visit: https://github.com/celeryhq/simplified-mcp
 `);
@@ -119,6 +125,28 @@ async function showVersion(): Promise<void> {
   }
 }
 
+async function generateDocumentation(): Promise<void> {
+  try {
+    // Load configuration to initialize the server properly
+    const config = ConfigurationManager.loadConfig();
+    
+    // Create a temporary server instance to initialize tools and generate documentation
+    const server = new SimplifiedMCPServer(config);
+    
+    // Initialize the server to register all tools (including workflow tools)
+    await server.initialize();
+    
+    // Generate and output the documentation
+    const documentation = server.getToolRegistry().generateDocumentation();
+    console.log(documentation);
+    
+  } catch (error) {
+    console.error('Failed to generate documentation:');
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+}
+
 async function main(): Promise<void> {
   const options = parseArguments();
 
@@ -130,6 +158,11 @@ async function main(): Promise<void> {
 
   if (options.version) {
     await showVersion();
+    process.exit(0);
+  }
+
+  if (options.docs) {
+    await generateDocumentation();
     process.exit(0);
   }
 

@@ -42,6 +42,7 @@
       "type": "string",
       "title": "Api Key",
       "description": "Simplified Api Key",
+      "default": "API_TOKEN",
       "required": true,
       "sensitive": true
     },

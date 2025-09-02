@@ -1,4 +1,4 @@
-import { ConfigurableLogger, createLogger, logger, LogEntry } from '../../src/utils/logger.js';
+import { ConfigurableLogger, createLogger, createMCPLogger, logger, LogEntry } from '../../src/utils/logger.js';
 import { LogLevel } from '../../src/types/index.js';
 
 describe('ConfigurableLogger', () => {
@@ -10,6 +10,7 @@ describe('ConfigurableLogger', () => {
     error: jest.SpyInstance;
     log: jest.SpyInstance;
   };
+  let stderrSpy: jest.SpyInstance;
 
   beforeEach(() => {
     // Mock console methods
@@ -20,6 +21,9 @@ describe('ConfigurableLogger', () => {
       error: jest.spyOn(console, 'error').mockImplementation(),
       log: jest.spyOn(console, 'log').mockImplementation()
     };
+
+    // Mock stderr for structured logging
+    stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation();
 
     testLogger = new ConfigurableLogger({
       level: LogLevel.DEBUG,
@@ -33,6 +37,7 @@ describe('ConfigurableLogger', () => {
   afterEach(() => {
     // Restore console methods
     Object.values(consoleSpy).forEach(spy => spy.mockRestore());
+    stderrSpy.mockRestore();
   });
 
   describe('constructor', () => {
@@ -333,13 +338,13 @@ describe('ConfigurableLogger', () => {
     it('should log in JSON format when structured logging is enabled', () => {
       structuredLogger.info('test message', { data: 'test' });
 
-      expect(consoleSpy.log).toHaveBeenCalledWith(
+      expect(stderrSpy).toHaveBeenCalledWith(
         expect.stringContaining('"level":"info"')
       );
-      expect(consoleSpy.log).toHaveBeenCalledWith(
+      expect(stderrSpy).toHaveBeenCalledWith(
         expect.stringContaining('"message":"test message"')
       );
-      expect(consoleSpy.log).toHaveBeenCalledWith(
+      expect(stderrSpy).toHaveBeenCalledWith(
         expect.stringContaining('"context":"test-context"')
       );
     });
@@ -347,7 +352,7 @@ describe('ConfigurableLogger', () => {
     it('should include timestamp in structured logs', () => {
       structuredLogger.info('test message');
 
-      const logCall = consoleSpy.log.mock.calls[0][0];
+      const logCall = stderrSpy.mock.calls[0][0];
       const logEntry = JSON.parse(logCall);
       
       expect(logEntry.timestamp).toBeDefined();
@@ -357,7 +362,7 @@ describe('ConfigurableLogger', () => {
     it('should include data in structured logs', () => {
       structuredLogger.info('test message', { key: 'value' }, 'extra arg');
 
-      const logCall = consoleSpy.log.mock.calls[0][0];
+      const logCall = stderrSpy.mock.calls[0][0];
       const logEntry = JSON.parse(logCall);
       
       expect(logEntry.data).toEqual({
@@ -369,7 +374,7 @@ describe('ConfigurableLogger', () => {
       const error = new Error('Test error');
       structuredLogger.logError(error, 'error-context');
 
-      const logCall = consoleSpy.log.mock.calls[0][0];
+      const logCall = stderrSpy.mock.calls[0][0];
       const logEntry = JSON.parse(logCall);
       
       expect(logEntry.level).toBe('error');
@@ -740,5 +745,240 @@ describe('LogEntry interface', () => {
       message: 'error message',
       stack: 'stack trace'
     });
+  });
+});
+
+describe('Enhanced Logger Features', () => {
+  let stderrSpy: jest.SpyInstance;
+  let consoleSpy: {
+    debug: jest.SpyInstance;
+    info: jest.SpyInstance;
+    warn: jest.SpyInstance;
+    error: jest.SpyInstance;
+  };
+
+  beforeEach(() => {
+    stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation();
+    consoleSpy = {
+      debug: jest.spyOn(console, 'debug').mockImplementation(),
+      info: jest.spyOn(console, 'info').mockImplementation(),
+      warn: jest.spyOn(console, 'warn').mockImplementation(),
+      error: jest.spyOn(console, 'error').mockImplementation()
+    };
+  });
+
+  afterEach(() => {
+    stderrSpy.mockRestore();
+    Object.values(consoleSpy).forEach(spy => spy.mockRestore());
+  });
+
+  describe('Safe JSON Serialization', () => {
+    it('should handle circular references', () => {
+      const logger = new ConfigurableLogger({
+        enableStructured: true,
+        outputStream: 'stderr'
+      });
+
+      const obj: any = { name: 'test' };
+      obj.self = obj; // Create circular reference
+
+      logger.info('test message', obj);
+
+      expect(stderrSpy).toHaveBeenCalled();
+      const logCall = stderrSpy.mock.calls[0][0];
+      expect(logCall).toContain('[Circular Reference]');
+    });
+
+    it('should handle functions in data', () => {
+      const logger = new ConfigurableLogger({
+        enableStructured: true,
+        outputStream: 'stderr'
+      });
+
+      logger.info('test message', { fn: () => 'test' });
+
+      expect(stderrSpy).toHaveBeenCalled();
+      const logCall = stderrSpy.mock.calls[0][0];
+      expect(logCall).toContain('[Function]');
+    });
+
+    it('should handle undefined values', () => {
+      const logger = new ConfigurableLogger({
+        enableStructured: true,
+        outputStream: 'stderr'
+      });
+
+      logger.info('test message', { value: undefined });
+
+      expect(stderrSpy).toHaveBeenCalled();
+      const logCall = stderrSpy.mock.calls[0][0];
+      expect(logCall).toContain('[Undefined]');
+    });
+
+    it('should handle symbols', () => {
+      const logger = new ConfigurableLogger({
+        enableStructured: true,
+        outputStream: 'stderr'
+      });
+
+      const sym = Symbol('test');
+      logger.info('test message', { symbol: sym });
+
+      expect(stderrSpy).toHaveBeenCalled();
+      const logCall = stderrSpy.mock.calls[0][0];
+      expect(logCall).toContain('Symbol(test)');
+    });
+
+    it('should handle bigint values', () => {
+      const logger = new ConfigurableLogger({
+        enableStructured: true,
+        outputStream: 'stderr'
+      });
+
+      logger.info('test message', { bigNum: BigInt(123) });
+
+      expect(stderrSpy).toHaveBeenCalled();
+      const logCall = stderrSpy.mock.calls[0][0];
+      expect(logCall).toContain('"123"');
+    });
+
+    it('should handle Error objects in data', () => {
+      const logger = new ConfigurableLogger({
+        enableStructured: true,
+        outputStream: 'stderr'
+      });
+
+      const error = new Error('test error');
+      logger.info('test message', { error });
+
+      expect(stderrSpy).toHaveBeenCalled();
+      const logCall = stderrSpy.mock.calls[0][0];
+      const parsed = JSON.parse(logCall);
+      expect(parsed.data.args[0].error.name).toBe('Error');
+      expect(parsed.data.args[0].error.message).toBe('test error');
+    });
+
+    it('should respect max depth limit', () => {
+      const logger = new ConfigurableLogger({
+        enableStructured: true,
+        outputStream: 'stderr',
+        maxDepth: 2
+      });
+
+      const deepObj = { level1: { level2: { level3: { level4: 'deep' } } } };
+      logger.info('test message', deepObj);
+
+      expect(stderrSpy).toHaveBeenCalled();
+      const logCall = stderrSpy.mock.calls[0][0];
+      expect(logCall).toContain('[Max depth exceeded]');
+    });
+  });
+
+  describe('Fallback Mechanisms', () => {
+    it('should fallback to console logging when JSON serialization fails', () => {
+      const logger = new ConfigurableLogger({
+        enableStructured: true,
+        enableFallback: true,
+        outputStream: 'stderr'
+      });
+
+      // Mock stderr.write to throw an error
+      stderrSpy.mockImplementation(() => {
+        throw new Error('Write failed');
+      });
+
+      logger.info('test message');
+
+      expect(consoleSpy.info).toHaveBeenCalled();
+      expect(consoleSpy.error).toHaveBeenCalledWith(
+        expect.stringContaining('JSON serialization failed:'),
+        'Write failed'
+      );
+    });
+
+    it('should not fallback when fallback is disabled', () => {
+      const logger = new ConfigurableLogger({
+        enableStructured: true,
+        enableFallback: false,
+        outputStream: 'stderr'
+      });
+
+      // Mock stderr.write to throw an error
+      stderrSpy.mockImplementation(() => {
+        throw new Error('Write failed');
+      });
+
+      logger.info('test message');
+
+      expect(consoleSpy.info).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Output Stream Configuration', () => {
+    it('should use stderr by default for structured logging', () => {
+      const logger = new ConfigurableLogger({
+        enableStructured: true
+      });
+
+      logger.info('test message');
+
+      expect(stderrSpy).toHaveBeenCalled();
+    });
+
+    it('should use stdout when configured', () => {
+      const stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation();
+      
+      const logger = new ConfigurableLogger({
+        enableStructured: true,
+        outputStream: 'stdout'
+      });
+
+      logger.info('test message');
+
+      expect(stdoutSpy).toHaveBeenCalled();
+      expect(stderrSpy).not.toHaveBeenCalled();
+      
+      stdoutSpy.mockRestore();
+    });
+  });
+});
+
+describe('createMCPLogger', () => {
+  let stderrSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation();
+  });
+
+  afterEach(() => {
+    stderrSpy.mockRestore();
+  });
+
+  it('should create logger with MCP-safe defaults', () => {
+    const mcpLogger = createMCPLogger();
+
+    mcpLogger.info('test message');
+
+    expect(stderrSpy).toHaveBeenCalled();
+    const logCall = stderrSpy.mock.calls[0][0];
+    const parsed = JSON.parse(logCall);
+    expect(parsed.level).toBe('info');
+    expect(parsed.message).toBe('test message');
+  });
+
+  it('should allow custom configuration while maintaining MCP safety', () => {
+    const mcpLogger = createMCPLogger({
+      level: LogLevel.WARN,
+      context: 'mcp-server'
+    });
+
+    mcpLogger.info('info message'); // Should be filtered
+    mcpLogger.warn('warn message'); // Should be logged
+
+    expect(stderrSpy).toHaveBeenCalledTimes(1);
+    const logCall = stderrSpy.mock.calls[0][0];
+    const parsed = JSON.parse(logCall);
+    expect(parsed.level).toBe('warn');
+    expect(parsed.context).toBe('mcp-server');
   });
 });

@@ -4,6 +4,7 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { createWorkflowStatusTool } from './tools/implementations/workflow-status-tool.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -13,9 +14,11 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import type { ServerConfig, ToolDefinition, ToolCallParams, Logger } from './types/index.js';
-import { ToolRegistry, createTool, ErrorHandler, AppError, ErrorType } from './types/index.js';
+import { ToolRegistry, ErrorHandler } from './types/index.js';
 import { socialMediaTools } from './tools/implementations/social-media-tools.js';
 import { SimplifiedAPIClient } from './api/client.js';
+import { WorkflowToolManager, type IWorkflowToolManager } from './services/workflow-tool-manager.js';
+import { createMCPLogger } from './utils/logger.js';
 
 /**
  * Simplified MCP Server class that implements the MCP protocol
@@ -27,12 +30,14 @@ export class SimplifiedMCPServer {
   private toolRegistry: ToolRegistry;
   private logger: Logger | undefined;
   private apiClient: SimplifiedAPIClient;
+  private workflowToolManager: IWorkflowToolManager;
 
   constructor(config: ServerConfig, logger?: Logger) {
     this.config = config;
     this.toolRegistry = new ToolRegistry();
+    this.toolRegistry.setConfig(config);
     this.logger = logger;
-    
+
     // Initialize API client
     this.apiClient = new SimplifiedAPIClient({
       baseUrl: config.apiBaseUrl,
@@ -41,7 +46,15 @@ export class SimplifiedMCPServer {
       retryAttempts: config.retryAttempts,
       retryDelay: config.retryDelay
     });
-    
+    const loggers = this.logger || createMCPLogger({ context: 'SimplifiedMCPServer' });
+    // Initialize WorkflowToolManager
+    this.workflowToolManager = new WorkflowToolManager(
+      this.apiClient,
+      loggers, // this.logger || console,
+      config,
+      this.toolRegistry
+    );
+
     // Initialize the MCP server with proper capabilities
     this.server = new Server(
       {
@@ -81,12 +94,12 @@ export class SimplifiedMCPServer {
     // Handle tool call requests
     this.server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToolResult> => {
       const { name, arguments: args } = request.params;
-      
+
       try {
         return await this.handleToolCall({ name, arguments: args || {} });
       } catch (error) {
         ErrorHandler.logError(error as Error, `tool-call:${name}`, this.logger);
-        
+
         // Create MCP-compliant error response for tool calls
         const mcpError = ErrorHandler.createToolErrorResponse(
           error as Error,
@@ -94,7 +107,7 @@ export class SimplifiedMCPServer {
           args,
           'tool-execution'
         );
-        
+
         return {
           content: [
             {
@@ -116,6 +129,41 @@ export class SimplifiedMCPServer {
     for (const tool of socialMediaTools) {
       this.toolRegistry.registerTool(tool);
     }
+
+    // Register workflow status tool if workflows are enabled
+    if (this.config.workflowsEnabled) {
+      // Ensure we have a logger for the workflow status tool
+      const logger = this.logger || createMCPLogger({ context: 'WorkflowStatusTool' });
+      this.toolRegistry.registerTool(createWorkflowStatusTool(logger));
+    }
+  }
+
+  /**
+   * Initialize workflow tools with proper error handling
+   */
+  private async initializeWorkflowTools(): Promise<void> {
+    try {
+      const logger = this.logger || createMCPLogger({ context: 'SimplifiedMCPServer' });
+      logger.info('Initializing workflow tools...');
+
+      await this.workflowToolManager.initialize();
+
+      if (this.workflowToolManager.isEnabled()) {
+        const workflowCount = this.workflowToolManager.getRegisteredWorkflowCount();
+        logger.info(`Workflow tools initialized: ${workflowCount} tools registered`);
+      } else {
+        logger.info('Workflow tools are disabled');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const logger = this.logger || createMCPLogger({ context: 'SimplifiedMCPServer' });
+
+      logger.error(`Failed to initialize workflow tools: ${errorMessage}`);
+      logger.warn('Server will continue with static tools only');
+
+      // Don't throw error - graceful degradation
+      // The server should continue to work with static tools only
+    }
   }
 
   /**
@@ -130,6 +178,14 @@ export class SimplifiedMCPServer {
    */
   public getToolRegistry(): ToolRegistry {
     return this.toolRegistry;
+  }
+
+  /**
+   * Initialize the server (including workflow tools) without starting the transport
+   * This is useful for documentation generation and testing
+   */
+  public async initialize(): Promise<void> {
+    await this.initializeWorkflowTools();
   }
 
   /**
@@ -176,13 +232,42 @@ export class SimplifiedMCPServer {
    * Start the MCP server with stdio transport
    */
   public async start(): Promise<void> {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    
-    // Log server startup (to stderr so it doesn't interfere with MCP protocol)
-    console.error('Simplified MCP Server started successfully');
-    console.error(`Registered ${this.toolRegistry.getToolCount()} tools`);
-    console.error('Listening for MCP requests via stdio...');
+    try {
+      // Initialize workflow tools before starting the server
+      await this.initializeWorkflowTools();
+
+      const transport = new StdioServerTransport();
+      await this.server.connect(transport);
+
+      // Get or create MCP-safe logger for server messages
+      const logger = this.logger || createMCPLogger({ context: 'SimplifiedMCPServer' });
+
+      // Log server startup using MCP-safe logger
+      logger.info('Simplified MCP Server started successfully');
+      logger.info(`Registered ${this.toolRegistry.getToolCount()} tools total`);
+
+      // Log workflow tool information
+      if (this.workflowToolManager.isEnabled()) {
+        const workflowCount = this.workflowToolManager.getRegisteredWorkflowCount();
+        logger.info(`Static tools: ${this.toolRegistry.getToolCount() - workflowCount}`);
+        logger.info(`Workflow tools: ${workflowCount}`);
+
+        if (workflowCount > 0) {
+          const workflowToolNames = this.workflowToolManager.getWorkflowToolNames();
+          logger.info(`Workflow tool names: ${workflowToolNames.join(', ')}`);
+        }
+      } else {
+        logger.info(`Static tools: ${this.toolRegistry.getToolCount()}`);
+        logger.info('Workflow tools: disabled');
+      }
+
+      logger.info('Listening for MCP requests via stdio...');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const logger = this.logger || createMCPLogger({ context: 'SimplifiedMCPServer' });
+      logger.error(`Failed to start Simplified MCP Server: ${errorMessage}`);
+      throw error;
+    }
   }
 
   /**
@@ -190,15 +275,18 @@ export class SimplifiedMCPServer {
    */
   public async stop(): Promise<void> {
     try {
+      const logger = this.logger || createMCPLogger({ context: 'SimplifiedMCPServer' });
+      logger.info('Stopping Simplified MCP Server...');
+
+      // Shutdown workflow tool manager
+      await this.workflowToolManager.shutdown();
+
       // The MCP SDK server doesn't have an explicit close method
       // but we can perform cleanup here if needed
-      console.error('Stopping Simplified MCP Server...');
-      
-      // Any cleanup logic would go here
-      // For now, we just log the shutdown
-      console.error('Server cleanup completed');
+      logger.info('Server cleanup completed');
     } catch (error) {
-      console.error('Error during server shutdown:', error instanceof Error ? error.message : String(error));
+      const logger = this.logger || createMCPLogger({ context: 'SimplifiedMCPServer' });
+      logger.error('Error during server shutdown:', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -222,5 +310,33 @@ export class SimplifiedMCPServer {
    */
   public getToolNames(): string[] {
     return this.toolRegistry.getToolNames();
+  }
+
+  /**
+   * Get workflow tool manager instance
+   */
+  public getWorkflowToolManager(): IWorkflowToolManager {
+    return this.workflowToolManager;
+  }
+
+  /**
+   * Get workflow tools count
+   */
+  public getWorkflowToolsCount(): number {
+    return this.workflowToolManager.getRegisteredWorkflowCount();
+  }
+
+  /**
+   * Check if workflow tools are enabled
+   */
+  public isWorkflowToolsEnabled(): boolean {
+    return this.workflowToolManager.isEnabled();
+  }
+
+  /**
+   * Refresh workflow tools
+   */
+  public async refreshWorkflowTools(): Promise<void> {
+    await this.workflowToolManager.refreshWorkflows();
   }
 }

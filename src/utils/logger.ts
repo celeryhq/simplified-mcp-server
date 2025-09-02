@@ -78,6 +78,9 @@ export interface LoggerConfig {
   enableTimestamp: boolean;
   enableStructured: boolean;
   context?: string;
+  outputStream?: 'stdout' | 'stderr';
+  maxDepth?: number;
+  enableFallback?: boolean;
 }
 
 /**
@@ -93,6 +96,9 @@ export class ConfigurableLogger implements Logger {
       enableColors: config.enableColors ?? (process.env.NODE_ENV !== 'production'),
       enableTimestamp: config.enableTimestamp ?? true,
       enableStructured: config.enableStructured ?? (process.env.NODE_ENV === 'production'),
+      outputStream: config.outputStream ?? 'stderr',
+      maxDepth: config.maxDepth ?? 10,
+      enableFallback: config.enableFallback ?? true,
       ...(config.context && { context: config.context })
     };
   }
@@ -210,7 +216,119 @@ export class ConfigurableLogger implements Logger {
       ...(data && { data })
     };
 
-    console.log(JSON.stringify(entry));
+    try {
+      const serialized = this.safeJsonStringify(entry);
+      const outputStream = this.config.outputStream === 'stdout' ? process.stdout : process.stderr;
+      // outputStream.write(serialized + '\n');
+    } catch (error) {
+      if (this.config.enableFallback) {
+        this.fallbackToConsole(level, message, context, data, error as Error);
+      }
+    }
+  }
+
+  /**
+   * Safe JSON serialization with circular reference detection
+   */
+  private safeJsonStringify(obj: any): string {
+    const seen = new WeakSet();
+    const maxDepth = this.config.maxDepth!;
+    
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return '[Circular Reference]';
+        }
+        seen.add(value);
+        
+        // Check depth by counting the nesting level
+        const depth = this.getObjectDepth(value);
+        if (depth > maxDepth) {
+          return '[Max depth exceeded]';
+        }
+      }
+      
+      // Handle special types
+      if (value instanceof Error) {
+        return {
+          name: value.name,
+          message: value.message,
+          stack: value.stack
+        };
+      }
+      
+      if (typeof value === 'function') {
+        return '[Function]';
+      }
+      
+      if (typeof value === 'undefined') {
+        return '[Undefined]';
+      }
+      
+      if (typeof value === 'symbol') {
+        return value.toString();
+      }
+      
+      if (typeof value === 'bigint') {
+        return value.toString();
+      }
+      
+      return value;
+    });
+  }
+
+  /**
+   * Calculate the depth of an object
+   */
+  private getObjectDepth(obj: any, visited = new WeakSet()): number {
+    if (obj === null || typeof obj !== 'object' || visited.has(obj)) {
+      return 0;
+    }
+    
+    visited.add(obj);
+    let maxDepth = 0;
+    
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const depth = this.getObjectDepth(obj[key], visited);
+        maxDepth = Math.max(maxDepth, depth);
+      }
+    }
+    
+    visited.delete(obj);
+    return maxDepth + 1;
+  }
+
+  /**
+   * Fallback to console logging when structured logging fails
+   */
+  private fallbackToConsole(level: LogLevel, message: string, context?: string, data?: any, error?: Error): void {
+    const timestamp = new Date().toISOString();
+    const contextStr = context ? `[${context}]` : '';
+    const levelStr = LOG_LEVEL_MAP[level].toUpperCase();
+    
+    const fallbackMessage = `${timestamp} ${contextStr} [${levelStr}] ${message}`;
+    
+    // Log the original message
+    // switch (level) {
+    //   case LogLevel.DEBUG:
+    //     console.debug(fallbackMessage, data);
+    //     break;
+    //   case LogLevel.INFO:
+    //     console.info(fallbackMessage, data);
+    //     break;
+    //   case LogLevel.WARN:
+    //     console.warn(fallbackMessage, data);
+    //     break;
+    //   case LogLevel.ERROR:
+    //     console.error(fallbackMessage, data);
+    //     break;
+    // }
+    
+    // Log the serialization error
+    if (error) {
+      console.error(`${timestamp} [LOGGER] [ERROR] JSON serialization failed:`, error.message);
+    }
   }
 
   /**
@@ -243,20 +361,20 @@ export class ConfigurableLogger implements Logger {
     const fullMessage = prefix ? `${prefix} ${message}` : message;
 
     // Use appropriate console method based on level
-    switch (level) {
-      case LogLevel.DEBUG:
-        console.debug(fullMessage, ...args);
-        break;
-      case LogLevel.INFO:
-        console.info(fullMessage, ...args);
-        break;
-      case LogLevel.WARN:
-        console.warn(fullMessage, ...args);
-        break;
-      case LogLevel.ERROR:
-        console.error(fullMessage, ...args);
-        break;
-    }
+    // switch (level) {
+    //   case LogLevel.DEBUG:
+    //     console.debug(fullMessage, ...args);
+    //     break;
+    //   case LogLevel.INFO:
+    //     console.info(fullMessage, ...args);
+    //     break;
+    //   case LogLevel.WARN:
+    //     console.warn(fullMessage, ...args);
+    //     break;
+    //   case LogLevel.ERROR:
+    //     console.error(fullMessage, ...args);
+    //     break;
+    // }
   }
 }
 
@@ -270,4 +388,16 @@ export const logger = new ConfigurableLogger();
  */
 export function createLogger(config: Partial<LoggerConfig> = {}): Logger {
   return new ConfigurableLogger(config);
+}
+
+/**
+ * Create a logger specifically for MCP servers that ensures all output goes to stderr
+ */
+export function createMCPLogger(config: Partial<LoggerConfig> = {}): Logger {
+  return new ConfigurableLogger({
+    ...config,
+    outputStream: 'stderr',
+    enableStructured: true,
+    enableFallback: true
+  });
 }
