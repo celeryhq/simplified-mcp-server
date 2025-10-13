@@ -8,7 +8,7 @@ dotenv.config();
  * Workflow configuration schema with enhanced validation
  */
 const WorkflowConfigSchema = z.object({
-  workflowsEnabled: z.boolean().default(true),
+  workflowsEnabled: z.boolean().default(false),
   workflowDiscoveryInterval: z.number()
     .min(0, 'Workflow discovery interval must be 0 or positive (0 = disabled)')
     .max(86400000, 'Workflow discovery interval cannot exceed 24 hours (86400000ms)')
@@ -73,7 +73,7 @@ export class ConfigurationManager {
       timeout: process.env.REQUEST_TIMEOUT ? parseInt(process.env.REQUEST_TIMEOUT, 10) : undefined,
       retryAttempts: process.env.RETRY_ATTEMPTS ? parseInt(process.env.RETRY_ATTEMPTS, 10) : undefined,
       retryDelay: process.env.RETRY_DELAY ? parseInt(process.env.RETRY_DELAY, 10) : undefined,
-      
+
       // Workflow configuration
       workflowsEnabled: process.env.WORKFLOWS_ENABLED ? process.env.WORKFLOWS_ENABLED.toLowerCase() === 'true' : undefined,
       workflowDiscoveryInterval: process.env.WORKFLOW_DISCOVERY_INTERVAL ? parseInt(process.env.WORKFLOW_DISCOVERY_INTERVAL, 10) : undefined,
@@ -84,6 +84,8 @@ export class ConfigurationManager {
       workflowRetryAttempts: process.env.WORKFLOW_RETRY_ATTEMPTS ? parseInt(process.env.WORKFLOW_RETRY_ATTEMPTS, 10) : undefined
     };
 
+
+
     try {
       return this.validateConfig(rawConfig);
     } catch (error) {
@@ -91,17 +93,17 @@ export class ConfigurationManager {
         const missingFields = error.errors
           .filter(err => err.code === 'invalid_type' && err.received === 'undefined')
           .map(err => err.path.join('.'));
-        
+
         const invalidFields = error.errors
           .filter(err => err.code !== 'invalid_type' || err.received !== 'undefined')
           .map(err => `${err.path.join('.')}: ${err.message}`);
 
         let errorMessage = 'Configuration validation failed:\n';
-        
+
         if (missingFields.length > 0) {
           errorMessage += `Missing required environment variables: ${missingFields.join(', ')}\n`;
         }
-        
+
         if (invalidFields.length > 0) {
           errorMessage += `Invalid configuration values: ${invalidFields.join(', ')}\n`;
         }
@@ -122,7 +124,7 @@ export class ConfigurationManager {
         errorMessage += '- WORKFLOW_FILTER_PATTERNS: Comma-separated workflow name patterns (default: none)\n';
         errorMessage += '- WORKFLOW_STATUS_CHECK_INTERVAL: Status polling interval in ms (1000-300000, default: 5000)\n';
         errorMessage += '- WORKFLOW_RETRY_ATTEMPTS: Retry attempts for failed operations (0-10, default: 3)\n';
-        
+
         // Add specific workflow configuration guidance
         errorMessage += '\nWorkflow configuration guidelines:\n';
         errorMessage += '- Set WORKFLOW_DISCOVERY_INTERVAL to 0 to disable automatic refresh\n';
@@ -233,7 +235,7 @@ export class ConfigurationManager {
           workflowStatusCheckInterval: 2000, // 2 seconds for faster feedback
           workflowRetryAttempts: 1 // Fewer retries for faster failure feedback
         };
-      
+
       case 'production':
         return {
           workflowsEnabled: true,
@@ -243,7 +245,7 @@ export class ConfigurationManager {
           workflowStatusCheckInterval: 10000, // 10 seconds to reduce API load
           workflowRetryAttempts: 5 // More retries for reliability
         };
-      
+
       case 'testing':
         return {
           workflowsEnabled: false, // Disabled by default for testing
@@ -253,7 +255,7 @@ export class ConfigurationManager {
           workflowStatusCheckInterval: 1000, // 1 second minimum
           workflowRetryAttempts: 0 // No retries for predictable testing
         };
-      
+
       default:
         return {};
     }

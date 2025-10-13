@@ -219,7 +219,7 @@ export class ConfigurableLogger implements Logger {
     try {
       const serialized = this.safeJsonStringify(entry);
       const outputStream = this.config.outputStream === 'stdout' ? process.stdout : process.stderr;
-      // outputStream.write(serialized + '\n');
+      outputStream.write(serialized + '\n');
     } catch (error) {
       if (this.config.enableFallback) {
         this.fallbackToConsole(level, message, context, data, error as Error);
@@ -310,20 +310,20 @@ export class ConfigurableLogger implements Logger {
     const fallbackMessage = `${timestamp} ${contextStr} [${levelStr}] ${message}`;
     
     // Log the original message
-    // switch (level) {
-    //   case LogLevel.DEBUG:
-    //     console.debug(fallbackMessage, data);
-    //     break;
-    //   case LogLevel.INFO:
-    //     console.info(fallbackMessage, data);
-    //     break;
-    //   case LogLevel.WARN:
-    //     console.warn(fallbackMessage, data);
-    //     break;
-    //   case LogLevel.ERROR:
-    //     console.error(fallbackMessage, data);
-    //     break;
-    // }
+    switch (level) {
+      case LogLevel.DEBUG:
+        console.debug(fallbackMessage, data);
+        break;
+      case LogLevel.INFO:
+        console.info(fallbackMessage, data);
+        break;
+      case LogLevel.WARN:
+        console.warn(fallbackMessage, data);
+        break;
+      case LogLevel.ERROR:
+        console.error(fallbackMessage, data);
+        break;
+    }
     
     // Log the serialization error
     if (error) {
@@ -361,20 +361,20 @@ export class ConfigurableLogger implements Logger {
     const fullMessage = prefix ? `${prefix} ${message}` : message;
 
     // Use appropriate console method based on level
-    // switch (level) {
-    //   case LogLevel.DEBUG:
-    //     console.debug(fullMessage, ...args);
-    //     break;
-    //   case LogLevel.INFO:
-    //     console.info(fullMessage, ...args);
-    //     break;
-    //   case LogLevel.WARN:
-    //     console.warn(fullMessage, ...args);
-    //     break;
-    //   case LogLevel.ERROR:
-    //     console.error(fullMessage, ...args);
-    //     break;
-    // }
+    switch (level) {
+      case LogLevel.DEBUG:
+        console.debug(fullMessage, ...args);
+        break;
+      case LogLevel.INFO:
+        console.info(fullMessage, ...args);
+        break;
+      case LogLevel.WARN:
+        console.warn(fullMessage, ...args);
+        break;
+      case LogLevel.ERROR:
+        console.error(fullMessage, ...args);
+        break;
+    }
   }
 }
 

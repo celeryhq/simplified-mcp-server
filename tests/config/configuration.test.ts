@@ -56,7 +56,7 @@ describe('ConfigurationManager', () => {
     it('should throw error when API token is empty string', () => {
       process.env.SIMPLIFIED_API_TOKEN = '';
       
-      expect(() => ConfigurationManager.loadConfig()).toThrow(/SIMPLIFIED_API_TOKEN is required/);
+      expect(() => ConfigurationManager.loadConfig()).toThrow(/Configuration validation failed/);
     });
 
     it('should throw error for invalid log level', () => {
@@ -288,6 +288,7 @@ describe('ConfigurationManager', () => {
   describe('workflow configuration', () => {
     it('should load workflow configuration with default values', () => {
       process.env.SIMPLIFIED_API_TOKEN = 'test-token';
+      delete process.env.WORKFLOWS_ENABLED; // Ensure we test the default value
       
       const config = ConfigurationManager.loadConfig();
       

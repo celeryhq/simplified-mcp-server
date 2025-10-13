@@ -439,7 +439,7 @@ export class WorkflowPerformanceMonitor {
    * Shutdown the performance monitor
    */
   shutdown(): void {
-    this.logger.info('2 Shutting down WorkflowPerformanceMonitor');
+    this.logger.info('Shutting down WorkflowPerformanceMonitor');
 
     if (this.cleanupTimer) {
       clearInterval(this.cleanupTimer);
