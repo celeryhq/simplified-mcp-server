@@ -96,7 +96,8 @@ describe('ConfigurationManager', () => {
         workflowMaxConcurrentExecutions: 10,
         workflowFilterPatterns: [],
         workflowStatusCheckInterval: 5000,
-        workflowRetryAttempts: 3
+        workflowRetryAttempts: 3,
+        toolGroups: {}
       };
 
       const result = ConfigurationManager.validateConfig(validConfig);
@@ -545,6 +546,46 @@ describe('ConfigurationManager', () => {
 
       const warnings = ConfigurationManager.validateWorkflowConfiguration(config);
       expect(warnings).toEqual([]);
+    });
+  });
+
+  describe('tool group + scoping config', () => {
+    const KEYS = [
+      'TOOLS_SOCIAL_MEDIA_ENABLED', 'TOOLS_SMP_PM_ENABLED', 'TOOLS_CELERYHQ_ENABLED',
+      'SIMPLIFIED_ORGANIZATION_ID', 'SIMPLIFIED_SPACE_ID',
+    ];
+    let saved: Record<string, string | undefined>;
+    beforeEach(() => {
+      saved = {};
+      for (const k of KEYS) { saved[k] = process.env[k]; delete process.env[k]; }
+      process.env.SIMPLIFIED_API_TOKEN = 'test-token';
+    });
+    afterEach(() => {
+      for (const k of KEYS) {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k];
+      }
+    });
+
+    it('defaults every tool group to enabled', () => {
+      const config = ConfigurationManager.loadConfig();
+      expect(config.toolGroups.smp_pm).toBe(true);
+      expect(config.toolGroups.celeryhq).toBe(true);
+    });
+
+    it('disables a group when its env flag is "false"', () => {
+      process.env.TOOLS_SMP_PM_ENABLED = 'false';
+      const config = ConfigurationManager.loadConfig();
+      expect(config.toolGroups.smp_pm).toBe(false);
+      expect(config.toolGroups.social_media).toBe(true);
+    });
+
+    it('parses Organization/Space scoping IDs', () => {
+      process.env.SIMPLIFIED_ORGANIZATION_ID = '7';
+      process.env.SIMPLIFIED_SPACE_ID = '12';
+      const config = ConfigurationManager.loadConfig();
+      expect(config.organizationId).toBe(7);
+      expect(config.spaceId).toBe(12);
     });
   });
 
