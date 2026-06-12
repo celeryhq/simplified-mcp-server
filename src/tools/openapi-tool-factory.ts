@@ -79,7 +79,11 @@ export function buildRequest(
   };
 }
 
-/** Inject Organization/Space headers from config when the caller omitted them. */
+/**
+ * Inject Organization/Space headers from config when the caller omitted them.
+ * Matching is done against the HTTP header name (the value of `headerNames`), so the fallback
+ * works correctly even when the schema property name differs from the HTTP header name.
+ */
 function applyScopingFallback(
   descriptor: OpenAPIToolDescriptor,
   params: Record<string, any>,

@@ -45,6 +45,21 @@ describe('buildRequest', () => {
     expect(r.headers).toEqual({ Organization: '42' });
   });
 
+  it('applies scoping fallback when the property name differs from the header name', () => {
+    const remapped: OpenAPIToolDescriptor = {
+      ...descriptor,
+      paramLocations: { board_id: 'path', org_id: 'header', status: 'body' },
+      headerNames: { org_id: 'Organization' },
+    };
+    // caller omits org_id -> fallback should inject the Organization header
+    const r = buildRequest(remapped, { board_id: 'b1', status: 's1' }, { organizationId: 99 });
+    expect(r.headers).toEqual({ Organization: '99' });
+
+    // caller provides org_id -> caller value wins, no fallback
+    const r2 = buildRequest(remapped, { board_id: 'b1', org_id: 5, status: 's1' }, { organizationId: 99 });
+    expect(r2.headers).toEqual({ Organization: '5' });
+  });
+
   it('throws when a required path param is missing', () => {
     expect(() => buildRequest(descriptor, { status: 's1' }, {})).toThrow(/path parameter/i);
   });
