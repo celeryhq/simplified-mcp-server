@@ -1,4 +1,5 @@
 import { ConfigurationManager } from '../../src/config/configuration.js';
+import { TOOL_GROUP_KEYS } from '../../src/tools/tool-groups.js';
 
 describe('ConfigurationManager', () => {
   const originalEnv = process.env;
@@ -126,6 +127,10 @@ describe('ConfigurationManager', () => {
   describe('getOptionalEnvironmentVariables', () => {
     it('should return object with optional environment variables and defaults', () => {
       const optional = ConfigurationManager.getOptionalEnvironmentVariables();
+      const toolGroupEntries = TOOL_GROUP_KEYS.reduce((acc, key) => {
+        acc[`TOOLS_${key.toUpperCase()}_ENABLED`] = true;
+        return acc;
+      }, {} as Record<string, boolean>);
       expect(optional).toEqual({
         SIMPLIFIED_API_BASE_URL: 'https://api.simplified.com',
         LOG_LEVEL: 'info',
@@ -138,7 +143,10 @@ describe('ConfigurationManager', () => {
         WORKFLOW_MAX_CONCURRENT_EXECUTIONS: 10,
         WORKFLOW_FILTER_PATTERNS: '',
         WORKFLOW_STATUS_CHECK_INTERVAL: 5000,
-        WORKFLOW_RETRY_ATTEMPTS: 3
+        WORKFLOW_RETRY_ATTEMPTS: 3,
+        SIMPLIFIED_ORGANIZATION_ID: '',
+        SIMPLIFIED_SPACE_ID: '',
+        ...toolGroupEntries,
       });
     });
   });

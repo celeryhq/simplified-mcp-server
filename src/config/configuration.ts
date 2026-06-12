@@ -101,8 +101,6 @@ export class ConfigurationManager {
       }, {} as Record<string, boolean>),
     };
 
-
-
     try {
       return this.validateConfig(rawConfig);
     } catch (error) {
@@ -141,6 +139,10 @@ export class ConfigurationManager {
         errorMessage += '- WORKFLOW_FILTER_PATTERNS: Comma-separated workflow name patterns (default: none)\n';
         errorMessage += '- WORKFLOW_STATUS_CHECK_INTERVAL: Status polling interval in ms (1000-300000, default: 5000)\n';
         errorMessage += '- WORKFLOW_RETRY_ATTEMPTS: Retry attempts for failed operations (0-10, default: 3)\n';
+        errorMessage += '\nScoping and tool-group configuration (optional):\n';
+        errorMessage += '- SIMPLIFIED_ORGANIZATION_ID: Default workspace/organization ID for scoped requests (optional)\n';
+        errorMessage += '- SIMPLIFIED_SPACE_ID: Default sub-space ID for scoped requests (optional)\n';
+        errorMessage += '- TOOLS_<GROUP>_ENABLED: Enable/disable a generated tool group, e.g. TOOLS_SMP_PM_ENABLED (true|false, default: true)\n';
 
         // Add specific workflow configuration guidance
         errorMessage += '\nWorkflow configuration guidelines:\n';
@@ -190,7 +192,13 @@ export class ConfigurationManager {
       WORKFLOW_MAX_CONCURRENT_EXECUTIONS: 10,
       WORKFLOW_FILTER_PATTERNS: '',
       WORKFLOW_STATUS_CHECK_INTERVAL: 5000,
-      WORKFLOW_RETRY_ATTEMPTS: 3
+      WORKFLOW_RETRY_ATTEMPTS: 3,
+      SIMPLIFIED_ORGANIZATION_ID: '',
+      SIMPLIFIED_SPACE_ID: '',
+      ...TOOL_GROUP_KEYS.reduce((acc, key) => {
+        acc[`TOOLS_${key.toUpperCase()}_ENABLED`] = true;
+        return acc;
+      }, {} as Record<string, boolean>),
     };
   }
 
