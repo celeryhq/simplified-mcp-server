@@ -82,6 +82,7 @@ export function specToDescriptors(spec: any, groupKey: string): OpenAPIToolDescr
         path,
         paramLocations: {},
         headerNames: {},
+        bodyNames: {},
         inputSchema: { type: 'object', properties: {}, required: [] },
       };
 
@@ -106,12 +107,23 @@ export function specToDescriptors(spec: any, groupKey: string): OpenAPIToolDescr
         }
         const required: string[] = bodySchema.required ?? [];
         for (const [propName, propSchema] of Object.entries<any>(bodySchema.properties ?? {})) {
-          addProperty(descriptor, propName, 'body', propSchema, propSchema.description, required.includes(propName));
+          // A body field can legitimately share a name with a path/query/header
+          // param (e.g. a path `status_id` plus a distinct body `status_id`).
+          // In that case expose the body field under a disambiguated schema name
+          // and record the real wire name in `bodyNames` so the request still
+          // sends the correct field.
+          let schemaName = propName;
+          if (descriptor.paramLocations[schemaName]) {
+            schemaName = `body_${propName}`;
+            descriptor.bodyNames![schemaName] = propName;
+          }
+          addProperty(descriptor, schemaName, 'body', propSchema, propSchema.description, required.includes(propName));
         }
       }
 
       if (descriptor.inputSchema.required!.length === 0) delete descriptor.inputSchema.required;
       if (Object.keys(descriptor.headerNames!).length === 0) delete descriptor.headerNames;
+      if (Object.keys(descriptor.bodyNames!).length === 0) delete descriptor.bodyNames;
       descriptors.push(descriptor);
     }
   }

@@ -13,6 +13,13 @@ export interface OpenAPIToolDescriptor {
   paramLocations: Record<string, ParamLocation>;
   /** Maps a header property name to its actual HTTP header name. */
   headerNames?: Record<string, string> | undefined;
+  /**
+   * Maps a body property name to its actual wire field name. Used when a body
+   * field had to be renamed in the input schema to avoid colliding with a
+   * path/query/header param of the same name (e.g. a path `status_id` and a
+   * distinct body `status_id`).
+   */
+  bodyNames?: Record<string, string> | undefined;
   inputSchema: {
     type: 'object';
     properties: Record<string, any>;
@@ -58,7 +65,8 @@ export function buildRequest(
       const headerName = descriptor.headerNames?.[key] ?? key;
       headers[headerName] = String(value);
     } else {
-      body[key] = value;
+      const fieldName = descriptor.bodyNames?.[key] ?? key;
+      body[fieldName] = value;
     }
   }
 
