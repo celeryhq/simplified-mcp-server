@@ -1,8 +1,8 @@
 {
   "dxt_version": "0.1",
   "name": "simplified-mcp-server",
-  "version": "1.1.0",
-  "description": "MCP server for Simplified API integration",
+  "version": "1.2.0",
+  "description": "MCP server for Simplified API: social media, project manager, brand kit, and AI image/video/audio tools",
   "author": {
     "name": "Simplified MCP Server Contributors",
     "email": "jack@simplified.com",
@@ -28,12 +28,424 @@
   },
   "tools": [
     {
-      "name": "create_social_media_post",
-      "description": "Create a new social media post with specified action."
+      "name": "send_agent_notification",
+      "description": "Send a notification from an AI agent to a user"
+    },
+    {
+      "name": "transcribe_video",
+      "description": "Start a video/audio transcription job (step 1 of 3)"
+    },
+    {
+      "name": "get_transcription",
+      "description": "Poll a transcription job for status and transcript (step 2 of 3)"
+    },
+    {
+      "name": "download_transcription_file",
+      "description": "Download transcription as WebVTT or SRT (step 3 of 3)"
+    },
+    {
+      "name": "get_workspace",
+      "description": "Get a workspace"
+    },
+    {
+      "name": "list_brand_kits",
+      "description": "List brand kits"
+    },
+    {
+      "name": "create_brand_kit",
+      "description": "Create a brand kit"
+    },
+    {
+      "name": "get_brand_book",
+      "description": "Get brand book data"
+    },
+    {
+      "name": "import_brand_kit_modules",
+      "description": "Import brand kit modules"
+    },
+    {
+      "name": "list_context_documents",
+      "description": "List context documents"
+    },
+    {
+      "name": "create_context_document",
+      "description": "Create a context document"
+    },
+    {
+      "name": "delete_context_document",
+      "description": "Delete a context document"
+    },
+    {
+      "name": "update_context_document",
+      "description": "Update a context document"
+    },
+    {
+      "name": "get_context_document_by_type",
+      "description": "Get context document by type"
+    },
+    {
+      "name": "build_brand_kit",
+      "description": "Populate a brand kit (canonical schema)"
+    },
+    {
+      "name": "get_brand_kit",
+      "description": "Get brand kit"
+    },
+    {
+      "name": "convert_image_format",
+      "description": "Convert image format"
+    },
+    {
+      "name": "generate_image",
+      "description": "Generate AI image"
+    },
+    {
+      "name": "generate_video",
+      "description": "Generate AI video (step 2 of 3)"
+    },
+    {
+      "name": "get_video_variation",
+      "description": "Poll a video generation job (step 3 of 3)"
+    },
+    {
+      "name": "get_video_model_fields",
+      "description": "Discover model field schema (step 1 of 3)"
+    },
+    {
+      "name": "get_task_result",
+      "description": "Get async task result"
+    },
+    {
+      "name": "list_voices",
+      "description": "List available TTS voices"
+    },
+    {
+      "name": "generate_audio",
+      "description": "Generate TTS audio from text using the selected voice"
+    },
+    {
+      "name": "create_asset",
+      "description": "Create an asset from URL"
+    },
+    {
+      "name": "create_document",
+      "description": "Create a long-form document"
+    },
+    {
+      "name": "list_projects",
+      "description": "List projects"
+    },
+    {
+      "name": "create_project",
+      "description": "Create a project"
+    },
+    {
+      "name": "get_project",
+      "description": "Get a project"
+    },
+    {
+      "name": "delete_project",
+      "description": "Delete a project"
+    },
+    {
+      "name": "export_project_items",
+      "description": "Export project items"
+    },
+    {
+      "name": "list_project_items",
+      "description": "List project items"
+    },
+    {
+      "name": "create_project_item",
+      "description": "Create a project item"
+    },
+    {
+      "name": "get_project_item",
+      "description": "Get a project item"
+    },
+    {
+      "name": "delete_project_item",
+      "description": "Delete a project item"
+    },
+    {
+      "name": "assign_agent_to_item",
+      "description": "Assign agent to item"
+    },
+    {
+      "name": "reorder_project_item",
+      "description": "Reorder a project item"
+    },
+    {
+      "name": "list_comments",
+      "description": "List comments"
+    },
+    {
+      "name": "add_comment",
+      "description": "Add a comment"
+    },
+    {
+      "name": "blur_background",
+      "description": "Blur image background"
+    },
+    {
+      "name": "remove_background",
+      "description": "Remove image background"
+    },
+    {
+      "name": "upscale_image",
+      "description": "Upscale image resolution"
+    },
+    {
+      "name": "generative_fill",
+      "description": "Generative fill / inpaint with prompt"
+    },
+    {
+      "name": "image_outpainting",
+      "description": "Outpaint / extend image beyond borders"
+    },
+    {
+      "name": "magic_inpaint",
+      "description": "Magic inpaint — AI object removal / replacement"
+    },
+    {
+      "name": "pix_to_pix",
+      "description": "Pix-to-pix image transformation"
+    },
+    {
+      "name": "replace_image_background",
+      "description": "Replace image background"
+    },
+    {
+      "name": "restore_image",
+      "description": "Restore / enhance image quality"
+    },
+    {
+      "name": "sd_scribble",
+      "description": "Scribble to image (ControlNet)"
+    },
+    {
+      "name": "list_boards",
+      "description": "List boards"
+    },
+    {
+      "name": "create_board",
+      "description": "Create a board"
+    },
+    {
+      "name": "get_board",
+      "description": "Get a board"
+    },
+    {
+      "name": "delete_board",
+      "description": "Delete a board"
+    },
+    {
+      "name": "update_board",
+      "description": "Update a board"
+    },
+    {
+      "name": "clone_board",
+      "description": "Clone a board"
+    },
+    {
+      "name": "list_statuses",
+      "description": "List statuses on a board"
+    },
+    {
+      "name": "create_status",
+      "description": "Create a status on a board"
+    },
+    {
+      "name": "get_status",
+      "description": "Get a status"
+    },
+    {
+      "name": "delete_status",
+      "description": "Delete a status"
+    },
+    {
+      "name": "update_status",
+      "description": "Update a status"
+    },
+    {
+      "name": "move_status",
+      "description": "Reassign all tasks under this status to another status"
+    },
+    {
+      "name": "list_tasks",
+      "description": "List tasks"
+    },
+    {
+      "name": "create_task",
+      "description": "Create a task"
+    },
+    {
+      "name": "get_task",
+      "description": "Get a task"
+    },
+    {
+      "name": "delete_task",
+      "description": "Delete a task"
+    },
+    {
+      "name": "update_task",
+      "description": "Update a task"
+    },
+    {
+      "name": "list_subtasks",
+      "description": "List subtasks for a task"
+    },
+    {
+      "name": "get_task_activity",
+      "description": "Get task activity stream"
+    },
+    {
+      "name": "update_task_assignees",
+      "description": "Add or remove task assignees"
+    },
+    {
+      "name": "update_task_tags",
+      "description": "Add or remove task tags (by name)"
+    },
+    {
+      "name": "update_task_attachments",
+      "description": "Add or remove task attachments"
+    },
+    {
+      "name": "clone_task",
+      "description": "Clone a task"
+    },
+    {
+      "name": "update_task_custom_fields",
+      "description": "Set custom field values on a task"
+    },
+    {
+      "name": "get_task_dependencies",
+      "description": "Get the dependency graph for a task"
+    },
+    {
+      "name": "add_task_dependency",
+      "description": "Add a dependency to a task"
+    },
+    {
+      "name": "remove_task_dependency",
+      "description": "Remove a task dependency"
+    },
+    {
+      "name": "search_boards",
+      "description": "Search boards (Elasticsearch-backed) — prefer listBoards"
+    },
+    {
+      "name": "search_tasks",
+      "description": "Search tasks (Elasticsearch-backed)"
+    },
+    {
+      "name": "list_workspace_members",
+      "description": "List workspace members as assignee choices"
+    },
+    {
+      "name": "search_recent_tasks",
+      "description": "Recently modified tasks (Elasticsearch-backed)"
     },
     {
       "name": "get_social_media_accounts",
-      "description": "Get connected social accounts"
+      "description": "List ALL connected social media accounts in one call (omit `network`)"
+    },
+    {
+      "name": "get_social_media_analytics_range",
+      "description": "Get time-series analytics for specific metrics"
+    },
+    {
+      "name": "get_social_media_analytics_posts",
+      "description": "Get analytics for social media posts"
+    },
+    {
+      "name": "get_social_media_analytics_aggregated",
+      "description": "Get aggregated analytics for a social media account"
+    },
+    {
+      "name": "get_social_media_analytics_audience",
+      "description": "Get audience analytics for a social media account"
+    },
+    {
+      "name": "create_social_media_post",
+      "description": "Create a social media post"
+    },
+    {
+      "name": "get_social_media_posts",
+      "description": "Get published social media posts"
+    },
+    {
+      "name": "get_social_media_drafts",
+      "description": "Get draft social media posts"
+    },
+    {
+      "name": "delete_social_media_post",
+      "description": "Delete a published social media post"
+    },
+    {
+      "name": "delete_social_media_draft",
+      "description": "Delete a draft social media post"
+    },
+    {
+      "name": "update_social_media_post",
+      "description": "Update a published social media post"
+    },
+    {
+      "name": "list_social_media_tags",
+      "description": "List social-media tags (labels)"
+    },
+    {
+      "name": "create_social_media_tag",
+      "description": "Create a new social-media tag (label)"
+    },
+    {
+      "name": "update_social_media_draft",
+      "description": "Update a draft social media post"
+    },
+    {
+      "name": "create_social_media_review_bundle",
+      "description": "Create a review bundle for social media drafts"
+    },
+    {
+      "name": "add_drafts_to_social_media_review_bundle",
+      "description": "Add drafts to an existing review bundle"
+    },
+    {
+      "name": "convert_video_format",
+      "description": "Convert video to a different format"
+    },
+    {
+      "name": "merge_videos",
+      "description": "Merge multiple videos into one"
+    },
+    {
+      "name": "remove_audio",
+      "description": "Remove audio track from video"
+    },
+    {
+      "name": "reverse_video",
+      "description": "Reverse a video"
+    },
+    {
+      "name": "speedup_video",
+      "description": "Change video playback speed"
+    },
+    {
+      "name": "add_b_rolls_video",
+      "description": "Auto-add B-roll footage to a video"
+    },
+    {
+      "name": "script_to_video",
+      "description": "Generate a video from a script"
+    },
+    {
+      "name": "text_to_video",
+      "description": "Generate a video from a text prompt"
+    },
+    {
+      "name": "workflow_status",
+      "description": "Check the status of a running workflow execution"
     }
   ],
   "tools_generated": true,
@@ -47,21 +459,21 @@
       "sensitive": true
     },
     "base_path": {
-        "type": "string",
-        "title": "Base path",
-        "description": "Simplified Api Base Path",
-        "required": true,
-        "sensitive": false,
-        "default": "https://api.simplified.com"
-      },
-      "log_level": {
-        "type": "string",
-        "title": "Log level",
-        "description": "Log level",
-        "required": true,
-        "sensitive": false,
-        "default": "info"
-      }
+      "type": "string",
+      "title": "Base path",
+      "description": "Simplified Api Base Path",
+      "required": true,
+      "sensitive": false,
+      "default": "https://api.simplified.com"
+    },
+    "log_level": {
+      "type": "string",
+      "title": "Log level",
+      "description": "Log level",
+      "required": true,
+      "sensitive": false,
+      "default": "info"
+    }
   },
   "license": "MIT"
 }
