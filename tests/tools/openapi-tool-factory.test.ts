@@ -60,6 +60,19 @@ describe('buildRequest', () => {
     expect(r2.headers).toEqual({ Organization: '5' });
   });
 
+  it('remaps body params to their wire name via bodyNames', () => {
+    const moveStatus: OpenAPIToolDescriptor = {
+      ...descriptor,
+      method: 'POST',
+      path: '/api/v1/pm/status/{status_id}/move',
+      paramLocations: { status_id: 'path', body_status_id: 'body' },
+      bodyNames: { body_status_id: 'status_id' },
+    };
+    const r = buildRequest(moveStatus, { status_id: 'SRC', body_status_id: 'DST' }, {});
+    expect(r.endpoint).toBe('/api/v1/pm/status/SRC/move');
+    expect(r.body).toEqual({ status_id: 'DST' });
+  });
+
   it('throws when a required path param is missing', () => {
     expect(() => buildRequest(descriptor, { status: 's1' }, {})).toThrow(/path parameter/i);
   });
