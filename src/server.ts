@@ -15,7 +15,8 @@ import {
 
 import type { ServerConfig, ToolDefinition, ToolCallParams, Logger } from './types/index.js';
 import { ToolRegistry, ErrorHandler } from './types/index.js';
-import { socialMediaTools } from './tools/implementations/social-media-tools.js';
+import { generatedToolGroups } from './tools/generated/index.js';
+import { createOpenAPITool } from './tools/openapi-tool-factory.js';
 import { SimplifiedAPIClient } from './api/client.js';
 import { WorkflowToolManager, type IWorkflowToolManager } from './services/workflow-tool-manager.js';
 import { createMCPLogger } from './utils/logger.js';
@@ -125,14 +126,20 @@ export class SimplifiedMCPServer {
    * Register default tools for the server
    */
   private registerDefaultTools(): void {
-    // Register social media tools
-    for (const tool of socialMediaTools) {
-      this.toolRegistry.registerTool(tool);
+    // Register generated OpenAPI tools for each enabled group
+    const context = {
+      organizationId: this.config.organizationId,
+      spaceId: this.config.spaceId,
+    };
+    for (const [group, descriptors] of Object.entries(generatedToolGroups)) {
+      if (this.config.toolGroups[group] === false) continue;
+      for (const descriptor of descriptors) {
+        this.toolRegistry.registerTool(createOpenAPITool(descriptor, context));
+      }
     }
 
     // Register workflow status tool if workflows are enabled
     if (this.config.workflowsEnabled) {
-      // Ensure we have a logger for the workflow status tool
       const logger = this.logger || createMCPLogger({ context: 'WorkflowStatusTool' });
       this.toolRegistry.registerTool(createWorkflowStatusTool(logger));
     }

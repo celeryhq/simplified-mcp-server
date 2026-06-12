@@ -1,0 +1,23 @@
+# Files excluded from the packed .dxt extension (runtime doesn't need them)
+.git
+.github
+.kiro
+coverage
+tests
+docs
+scripts
+src
+*.test.ts
+*.test.js
+test-*.js
+test-*.ts
+example-mcp-tool-usage.js
+*.dxt
+*.tgz
+.env
+.env.test
+.env.example
+tsconfig.json
+jest.config.js
+IMPLEMENTATION_SUMMARY.md
+WORKFLOW_DISCOVERY_IMPLEMENTATION.md

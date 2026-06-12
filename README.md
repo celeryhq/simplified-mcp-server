@@ -199,6 +199,30 @@ Add the server to your Kiro MCP configuration:
 
 The server provides comprehensive social media management tools with platform-specific features, plus dynamic workflow tools for extended functionality:
 
+### Generated Tools
+
+The bulk of the server's tools are generated from the `simplified-apikit` OpenAPI specs. Run `npm run generate:tools` to regenerate them — it reads the specs from the path set in `SIMPLIFIED_APIKIT_SPECS_PATH` (defaulting to a local checkout of the `simplified-apikit` repo) and writes committed TypeScript descriptor files under `src/tools/generated/`. After upstream specs change, regenerate and commit the updated `src/tools/generated/` files.
+
+Tools are organized into groups, one per spec: `social_media`, `smp_pm`, `celeryhq`, `image_tools`, `video_tools`, `audio_tools`, `comments`, `agent_notification`. Each group can be toggled independently:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TOOLS_SOCIAL_MEDIA_ENABLED` | Enable/disable the `social_media` group | `true` |
+| `TOOLS_SMP_PM_ENABLED` | Enable/disable the `smp_pm` group | `true` |
+| `TOOLS_CELERYHQ_ENABLED` | Enable/disable the `celeryhq` group | `true` |
+| `TOOLS_IMAGE_TOOLS_ENABLED` | Enable/disable the `image_tools` group | `true` |
+| `TOOLS_VIDEO_TOOLS_ENABLED` | Enable/disable the `video_tools` group | `true` |
+| `TOOLS_AUDIO_TOOLS_ENABLED` | Enable/disable the `audio_tools` group | `true` |
+| `TOOLS_COMMENTS_ENABLED` | Enable/disable the `comments` group | `true` |
+| `TOOLS_AGENT_NOTIFICATION_ENABLED` | Enable/disable the `agent_notification` group | `true` |
+
+Two optional variables provide default workspace-scoping headers used when a tool call omits them:
+
+| Variable | Description |
+|----------|-------------|
+| `SIMPLIFIED_ORGANIZATION_ID` | Default organization ID sent as a request header |
+| `SIMPLIFIED_SPACE_ID` | Default space ID sent as a request header |
+
 ### Social Media Tools
 
 Tools for managing social media accounts and posts.

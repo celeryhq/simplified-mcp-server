@@ -8,6 +8,7 @@ import { ToolRegistry } from '../src/tools/registry.js';
 import { createTool } from '../src/tools/definitions.js';
 import { ErrorHandler } from '../src/utils/errors.js';
 import { AppError, ErrorType } from '../src/types/index.js';
+import { generatedToolGroups } from '../src/tools/generated/index.js';
 
 // Mock the MCP SDK
 jest.mock('@modelcontextprotocol/sdk/server/index.js');
@@ -36,7 +37,8 @@ describe('SimplifiedMCPServer Integration Tests', () => {
       logLevel: 'info' as const,
       timeout: 30000,
       retryAttempts: 3,
-      retryDelay: 1000
+      retryDelay: 1000,
+      toolGroups: {}
     };
 
     // Mock logger
@@ -173,10 +175,12 @@ describe('SimplifiedMCPServer Integration Tests', () => {
 
     it('should handle tool execution through registry', async () => {
       const registry = server.getToolRegistry();
-      
-      // Test social media accounts tool execution (should throw error without API client)
-      await expect(registry.executeTool('get_social_media_accounts', {}, null))
-        .rejects.toThrow('API client not available');
+
+      // Generated OpenAPI tools catch request failures internally and return an
+      // isError result rather than throwing. Without a valid API client the
+      // handler fails when calling makeRequest and surfaces it as isError.
+      const result = await registry.executeTool('get_social_media_accounts', {}, null);
+      expect(result.isError).toBe(true);
     });
 
     it('should handle tool execution errors gracefully', async () => {
@@ -278,8 +282,8 @@ describe('SimplifiedMCPServer Integration Tests', () => {
 
       expect(results).toHaveLength(10);
       results.forEach(result => {
-        expect(result).toBeInstanceOf(Error);
-        expect(result.message).toContain('API client not available');
+        // Generated tools surface failures as isError results rather than throwing.
+        expect(result.isError).toBe(true);
       });
     });
 
@@ -294,8 +298,8 @@ describe('SimplifiedMCPServer Integration Tests', () => {
       const results = await Promise.all(promises);
       expect(results).toHaveLength(100);
       results.forEach(result => {
-        expect(result).toBeInstanceOf(Error);
-        expect(result.message).toContain('API client not available');
+        // Generated tools surface failures as isError results rather than throwing.
+        expect(result.isError).toBe(true);
       });
     });
   });
@@ -337,6 +341,26 @@ describe('SimplifiedMCPServer Integration Tests', () => {
     });
   });
 
+  describe('generated tool registration', () => {
+    const baseConfig = () => ConfigurationManager.loadConfig();
+
+    it('registers generated tools for enabled groups', () => {
+      process.env.SIMPLIFIED_API_TOKEN = 'test-token';
+      const server = new SimplifiedMCPServer(baseConfig());
+      expect(server.getToolNames()).toContain('get_social_media_accounts');
+      expect(server.getToolNames()).toContain('list_tasks');
+    });
+
+    it('skips tools from disabled groups', () => {
+      process.env.SIMPLIFIED_API_TOKEN = 'test-token';
+      const config = baseConfig();
+      config.toolGroups = { ...config.toolGroups, smp_pm: false };
+      const server = new SimplifiedMCPServer(config);
+      expect(server.getToolNames()).not.toContain('list_tasks');
+      expect(server.getToolNames()).toContain('get_social_media_accounts');
+    });
+  });
+
   describe('Configuration Integration', () => {
     it('should have social media tools properly configured', async () => {
       const registry = server.getToolRegistry();
@@ -346,9 +370,10 @@ describe('SimplifiedMCPServer Integration Tests', () => {
       expect(toolNames).toContain('get_social_media_accounts');
       expect(toolNames).toContain('create_social_media_post');
       
-      // Check that tools are in the correct category
-      const socialMediaTools = registry.getToolsByCategory('social-media');
-      expect(socialMediaTools).toHaveLength(2);
+      // Generated social media tools use the 'social_media' category and there
+      // is one registered tool per descriptor in the generated group.
+      const socialMediaTools = registry.getToolsByCategory('social_media');
+      expect(socialMediaTools).toHaveLength(generatedToolGroups.social_media.length);
     });
 
     it('should handle configuration changes', () => {

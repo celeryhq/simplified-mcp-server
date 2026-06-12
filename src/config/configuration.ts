@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import dotenv from 'dotenv';
+import { TOOL_GROUP_KEYS } from '../tools/tool-groups.js';
 
 // Load environment variables from .env file in development
 dotenv.config();
@@ -48,7 +49,10 @@ const ConfigSchema = z.object({
   logLevel: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   timeout: z.number().positive().default(30000),
   retryAttempts: z.number().min(0).default(3),
-  retryDelay: z.number().positive().default(1000)
+  retryDelay: z.number().positive().default(1000),
+  organizationId: z.number().optional(),
+  spaceId: z.number().optional(),
+  toolGroups: z.record(z.string(), z.boolean()).default({})
 }).merge(WorkflowConfigSchema);
 
 /**
@@ -81,10 +85,21 @@ export class ConfigurationManager {
       workflowMaxConcurrentExecutions: process.env.WORKFLOW_MAX_CONCURRENT_EXECUTIONS ? parseInt(process.env.WORKFLOW_MAX_CONCURRENT_EXECUTIONS, 10) : undefined,
       workflowFilterPatterns: process.env.WORKFLOW_FILTER_PATTERNS ? process.env.WORKFLOW_FILTER_PATTERNS.split(',').map(p => p.trim()).filter(p => p.length > 0) : undefined,
       workflowStatusCheckInterval: process.env.WORKFLOW_STATUS_CHECK_INTERVAL ? parseInt(process.env.WORKFLOW_STATUS_CHECK_INTERVAL, 10) : undefined,
-      workflowRetryAttempts: process.env.WORKFLOW_RETRY_ATTEMPTS ? parseInt(process.env.WORKFLOW_RETRY_ATTEMPTS, 10) : undefined
+      workflowRetryAttempts: process.env.WORKFLOW_RETRY_ATTEMPTS ? parseInt(process.env.WORKFLOW_RETRY_ATTEMPTS, 10) : undefined,
+
+      // Tool group + scoping configuration
+      organizationId: process.env.SIMPLIFIED_ORGANIZATION_ID
+        ? parseInt(process.env.SIMPLIFIED_ORGANIZATION_ID, 10)
+        : undefined,
+      spaceId: process.env.SIMPLIFIED_SPACE_ID
+        ? parseInt(process.env.SIMPLIFIED_SPACE_ID, 10)
+        : undefined,
+      toolGroups: TOOL_GROUP_KEYS.reduce((acc, key) => {
+        const envVar = process.env[`TOOLS_${key.toUpperCase()}_ENABLED`];
+        acc[key] = envVar === undefined ? true : envVar.toLowerCase() === 'true';
+        return acc;
+      }, {} as Record<string, boolean>),
     };
-
-
 
     try {
       return this.validateConfig(rawConfig);
@@ -124,6 +139,10 @@ export class ConfigurationManager {
         errorMessage += '- WORKFLOW_FILTER_PATTERNS: Comma-separated workflow name patterns (default: none)\n';
         errorMessage += '- WORKFLOW_STATUS_CHECK_INTERVAL: Status polling interval in ms (1000-300000, default: 5000)\n';
         errorMessage += '- WORKFLOW_RETRY_ATTEMPTS: Retry attempts for failed operations (0-10, default: 3)\n';
+        errorMessage += '\nScoping and tool-group configuration (optional):\n';
+        errorMessage += '- SIMPLIFIED_ORGANIZATION_ID: Default workspace/organization ID for scoped requests (optional)\n';
+        errorMessage += '- SIMPLIFIED_SPACE_ID: Default sub-space ID for scoped requests (optional)\n';
+        errorMessage += '- TOOLS_<GROUP>_ENABLED: Enable/disable a generated tool group, e.g. TOOLS_SMP_PM_ENABLED (true|false, default: true)\n';
 
         // Add specific workflow configuration guidance
         errorMessage += '\nWorkflow configuration guidelines:\n';
@@ -173,7 +192,13 @@ export class ConfigurationManager {
       WORKFLOW_MAX_CONCURRENT_EXECUTIONS: 10,
       WORKFLOW_FILTER_PATTERNS: '',
       WORKFLOW_STATUS_CHECK_INTERVAL: 5000,
-      WORKFLOW_RETRY_ATTEMPTS: 3
+      WORKFLOW_RETRY_ATTEMPTS: 3,
+      SIMPLIFIED_ORGANIZATION_ID: '',
+      SIMPLIFIED_SPACE_ID: '',
+      ...TOOL_GROUP_KEYS.reduce((acc, key) => {
+        acc[`TOOLS_${key.toUpperCase()}_ENABLED`] = true;
+        return acc;
+      }, {} as Record<string, boolean>),
     };
   }
 
