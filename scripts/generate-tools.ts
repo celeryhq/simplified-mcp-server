@@ -22,17 +22,20 @@ function resolveRef(spec: any, ref: string): any {
   return node;
 }
 
-/** Recursively inline every `$ref` inside a schema/parameter node. */
-function deepResolve(spec: any, node: any, seen = new Set<string>()): any {
-  if (Array.isArray(node)) return node.map((n) => deepResolve(spec, n, seen));
+/** Recursively inline every `$ref` inside a schema/parameter node.
+ *  `stack` tracks refs on the CURRENT resolution path only, so the same
+ *  `$ref` reused in sibling positions still resolves; true cycles return {}. */
+function deepResolve(spec: any, node: any, stack: Set<string> = new Set()): any {
+  if (Array.isArray(node)) return node.map((n) => deepResolve(spec, n, stack));
   if (node && typeof node === 'object') {
     if (typeof node.$ref === 'string') {
-      if (seen.has(node.$ref)) return {}; // cycle guard
-      seen.add(node.$ref);
-      return deepResolve(spec, resolveRef(spec, node.$ref), seen);
+      if (stack.has(node.$ref)) return {}; // cycle guard
+      const nextStack = new Set(stack);
+      nextStack.add(node.$ref);
+      return deepResolve(spec, resolveRef(spec, node.$ref), nextStack);
     }
     const out: Record<string, any> = {};
-    for (const [k, v] of Object.entries(node)) out[k] = deepResolve(spec, v, seen);
+    for (const [k, v] of Object.entries(node)) out[k] = deepResolve(spec, v, stack);
     return out;
   }
   return node;
@@ -96,6 +99,11 @@ export function specToDescriptors(spec: any, groupKey: string): OpenAPIToolDescr
       const bodySchemaRef = op.requestBody?.content?.['application/json']?.schema;
       if (bodySchemaRef) {
         const bodySchema = deepResolve(spec, bodySchemaRef);
+        if (!bodySchema.properties && (bodySchema.allOf || bodySchema.oneOf || bodySchema.anyOf)) {
+          console.error(
+            `Warning: ${descriptor.name} body uses allOf/oneOf/anyOf with no top-level properties; no body params generated.`
+          );
+        }
         const required: string[] = bodySchema.required ?? [];
         for (const [propName, propSchema] of Object.entries<any>(bodySchema.properties ?? {})) {
           addProperty(descriptor, propName, 'body', propSchema, propSchema.description, required.includes(propName));

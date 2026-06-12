@@ -70,3 +70,36 @@ describe('specToDescriptors', () => {
     expect(d.inputSchema.required!.sort()).toEqual(['board_id', 'status']);
   });
 });
+
+describe('specToDescriptors $ref reuse', () => {
+  const reuseSpec = {
+    components: {
+      schemas: {
+        UuidField: { type: 'string', format: 'uuid', description: 'A UUID' },
+        Body: {
+          type: 'object',
+          required: ['from_id'],
+          properties: {
+            from_id: { $ref: '#/components/schemas/UuidField' },
+            to_id: { $ref: '#/components/schemas/UuidField' },
+          },
+        },
+      },
+    },
+    paths: {
+      '/api/v1/link': {
+        post: {
+          operationId: 'createLink',
+          summary: 'Link',
+          requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/Body' } } } },
+        },
+      },
+    },
+  };
+
+  it('resolves the same $ref used in two sibling properties', () => {
+    const [d] = specToDescriptors(reuseSpec as any, 'demo');
+    expect(d.inputSchema.properties.from_id).toEqual({ type: 'string', format: 'uuid', description: 'A UUID' });
+    expect(d.inputSchema.properties.to_id).toEqual({ type: 'string', format: 'uuid', description: 'A UUID' });
+  });
+});
