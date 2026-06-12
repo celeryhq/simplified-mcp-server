@@ -12,9 +12,6 @@ export type { ServerConfig } from './config/configuration.js';
 export { SimplifiedAPIClient } from './api/client.js';
 export type { APIClientConfig } from './api/client.js';
 
-// Social media tools
-export { socialMediaTools } from './tools/implementations/social-media-tools.js';
-
 // Tool system
 export { ToolRegistry } from './tools/registry.js';
 export { 
